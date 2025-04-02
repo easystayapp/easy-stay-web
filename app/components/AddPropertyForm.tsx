@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { IKUploadResponse } from "imagekitio-next/dist/types/components/IKUpload/props";
+// import { IKUploadResponse } from "imagekitio-next/dist/types/components/IKUpload/props";
 import { Loader2 } from "lucide-react";
 import { useNotification } from "./Notification";
-import FileUpload from "./FileUpload";
+// import FileUpload from "./FileUpload";
 import propertyService from "@/lib/services/property";
 import { useSession } from "next-auth/react";
 
@@ -18,7 +18,7 @@ interface VideoFormData {
 
 export default function AddPropertyForm() {
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  // const [uploadProgress, setUploadProgress] = useState(0);
   const { showNotification } = useNotification();
 
   const { data: session } = useSession();
@@ -37,17 +37,17 @@ export default function AddPropertyForm() {
     },
   });
 
-  const handleUploadSuccess = (response: IKUploadResponse) => {
-    setValue("videoUrl", response.filePath);
-    setValue("thumbnailUrl", response.thumbnailUrl || response.filePath);
-    showNotification("Video uploaded successfully!", "success");
-  };
+  // const handleUploadSuccess = (response: IKUploadResponse) => {
+  //   setValue("videoUrl", response.filePath);
+  //   setValue("thumbnailUrl", response.thumbnailUrl || response.filePath);
+  //   showNotification("Video uploaded successfully!", "success");
+  // };
 
-  const handleUploadProgress = (progress: number) => {
-    setUploadProgress(progress);
-  };
+  // const handleUploadProgress = (progress: number) => {
+  //   setUploadProgress(progress);
+  // };
 
-  const onSubmit = async (data: VideoFormData) => {
+  const onSubmit = async () => {
     // if (!data.videoUrl) {
     //   showNotification("Please upload a video first", "error");
     //   return;
@@ -89,7 +89,7 @@ export default function AddPropertyForm() {
       setValue("description", "");
       setValue("videoUrl", "");
       setValue("thumbnailUrl", "");
-      setUploadProgress(0);
+      // setUploadProgress(0);
     } catch (error) {
       showNotification(
         error instanceof Error ? error.message : "Failed to publish video",
