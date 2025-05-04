@@ -11,6 +11,7 @@ export const authOptions: NextAuthOptions = {
             credentials: {
                 email: { label: "Email", type: "text" },
                 password: { label: "Password", type: "password" },
+                role: { label: "Role", type: "text" },
             },
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) {
@@ -30,8 +31,13 @@ export const authOptions: NextAuthOptions = {
                         user.password
                     );
 
-                    if (!isValid) {
-                        throw new Error("Invalid password");
+                    console.log("User role:", user.role);
+                    console.log("Provided role:", credentials.role);
+                    console.log("Password match:", isValid);
+                    console.log("logic:", (!isValid || credentials.role !== user.role));
+
+                    if ((!isValid || credentials.role !== user.role)) {
+                        throw new Error("Invalid Username or password");
                     }
 
                     return {
