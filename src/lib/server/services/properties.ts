@@ -34,7 +34,8 @@ import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/t
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
 import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
 import type { AuthUser } from "../auth";
-import { getFileStorage, type Repositories } from "../repositories";
+import type { Repositories } from "../repositories";
+import { deleteMedia, verifyPhotos } from "./media";
 import { factorAverages, toCard, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
 import { requireOwner } from "./users";
 
@@ -158,17 +159,6 @@ function buildFields(input: PropertyInput, owner: User & { owner: NonNullable<Us
   } satisfies Partial<Property>;
 }
 
-/** Photos must have been uploaded by this owner. */
-function assertOwnPhotos(input: PropertyInput, ownerId: string) {
-  if (input.photos.some((ph) => !ph.path.startsWith(`property-photos/${ownerId}/`))) {
-    throw new DomainError("invalid_input", "Upload photos from this device.", { photos: "invalid" });
-  }
-}
-
-async function deletePhotos(paths: string[]) {
-  const storage = getFileStorage();
-  await Promise.allSettled(paths.map((p) => storage.delete(p)));
-}
 
 export async function createProperty(
   repos: Repositories,
@@ -178,7 +168,7 @@ export async function createProperty(
 ): Promise<EditableProperty> {
   const owner = await requireOwner(repos, auth);
   const input = assertPropertyInput(body, publish ? "publish" : "draft");
-  assertOwnPhotos(input, auth.uid);
+  input.photos = await verifyPhotos(auth.uid, input.photos);
   const now = new Date();
   const p = await repos.properties.create({
     ownerId: auth.uid,
@@ -207,19 +197,19 @@ export async function updateProperty(
 ): Promise<EditableProperty> {
   const { owner, p } = await loadOwned(repos, auth, id);
   const input = assertPropertyInput(body, p.status === "draft" ? "draft" : "publish");
-  assertOwnPhotos(input, auth.uid);
+  input.photos = await verifyPhotos(auth.uid, input.photos, p.photos);
   const fields = buildFields(input, owner);
   const now = new Date();
   await repos.properties.update(id, { ...fields, updatedAt: now });
   const kept = new Set(input.photos.map((x) => x.path));
-  await deletePhotos(p.photos.map((x) => x.path).filter((path) => !kept.has(path)));
+  await deleteMedia(p.photos.map((x) => x.path).filter((path) => !kept.has(path)));
   return toEditable({ ...p, ...fields, updatedAt: now });
 }
 
 export async function deleteProperty(repos: Repositories, auth: AuthUser, id: string): Promise<void> {
   const { p } = await loadOwned(repos, auth, id);
   await repos.properties.delete(id);
-  await deletePhotos(p.photos.map((x) => x.path));
+  await deleteMedia(p.photos.map((x) => x.path));
 }
 
 export async function applyAction(

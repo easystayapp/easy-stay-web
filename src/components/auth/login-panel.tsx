@@ -29,8 +29,10 @@ export function LoginPanel({
   step,
   onStep,
   onDone,
+  inDialog,
 }: {
   copy?: LoginCopy;
+  inDialog?: boolean;
   step: "choose" | "code" | "name";
   onStep: (s: "choose" | "code" | "name") => void;
   onDone: () => void;
@@ -97,7 +99,7 @@ export function LoginPanel({
       <Image src="/brand/logo-mark.png" alt="EasyStay" width={44} height={39} className="h-auto w-11" />
       {step === "choose" && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-[24px] leading-tight font-extrabold tracking-tight">
+          <h2 aria-hidden={inDialog || undefined} className="text-[24px] leading-tight font-extrabold tracking-tight">
             {copy?.title ?? "Login to connect directly with the property owner"}
           </h2>
           <p className="text-[15px] text-muted-foreground">{copy?.subtitle ?? "We'll bring you right back to this property."}</p>

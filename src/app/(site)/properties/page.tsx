@@ -112,7 +112,13 @@ function ResultsView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[22px] font-extrabold tracking-tight md:text-[28px]">
             {searchHeading(filters)}
-            {data && <span className="ml-2 text-base font-semibold text-muted-foreground">{data.total}</span>}
+            {data && (
+              <span className="ml-2 text-base font-semibold text-muted-foreground">
+                <span className="sr-only">, </span>
+                {data.total}
+                <span className="sr-only"> {data.total === 1 ? "place" : "places"}</span>
+              </span>
+            )}
           </h1>
           <div className="flex items-center gap-2">
             <Label htmlFor="sort" className="text-muted-foreground">Sort</Label>

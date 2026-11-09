@@ -1,29 +1,37 @@
 /**
- * Adapter registry. `DATA_BACKEND` picks the storage implementation:
- *   firestore (default) — Cloud Firestore + Cloud Storage via the Admin SDK
- *   memory              — in-process Maps seeded with demo listings
+ * Adapter registry. Data and media storage are chosen independently:
+ *
+ *   DATA_BACKEND     firestore (default) — Cloud Firestore via the Admin SDK
+ *                    memory              — in-process Maps seeded with demo listings
+ *   STORAGE_BACKEND  r2                  — Cloudflare R2 (default when R2_* is set)
+ *                    memory              — in-process, served by /api/files (dev only)
  *
  * Adding a backend = one more case here plus an implementation of
- * `Repositories` and `FileStorage`.
+ * `Repositories` or `FileStorage`.
  */
 import { seedDemoData } from "../seed/demo";
 import { createFirestoreRepositories } from "./firestore";
-import { createFirebaseFileStorage } from "./firestore/storage";
 import { createMemoryFileStorage, createMemoryRepositories, memoryStore } from "./memory";
+import { createR2FileStorage, r2Configured } from "./r2";
 import type { FileStorage, Repositories } from "./types";
 
 export type { FileStorage, Repositories } from "./types";
 
-type Backend = "firestore" | "memory";
-
-export function dataBackend(): Backend {
+export function dataBackend(): "firestore" | "memory" {
   return process.env.DATA_BACKEND === "memory" ? "memory" : "firestore";
+}
+
+export function storageBackend(): "r2" | "memory" {
+  const v = process.env.STORAGE_BACKEND;
+  if (v === "r2" || v === "memory") return v;
+  return r2Configured() ? "r2" : "memory";
 }
 
 const g = globalThis as unknown as {
   __easyStayRepos?: Repositories;
   __easyStayFiles?: FileStorage;
   __easyStaySeeded?: Promise<void>;
+  __easyStayWarned?: boolean;
 };
 
 export async function getRepositories(): Promise<Repositories> {
@@ -40,6 +48,16 @@ export async function getRepositories(): Promise<Repositories> {
 }
 
 export function getFileStorage(): FileStorage {
-  g.__easyStayFiles ??= dataBackend() === "memory" ? createMemoryFileStorage() : createFirebaseFileStorage();
+  if (!g.__easyStayFiles) {
+    if (storageBackend() === "r2") {
+      g.__easyStayFiles = createR2FileStorage();
+    } else {
+      if (process.env.NODE_ENV === "production" && !g.__easyStayWarned) {
+        g.__easyStayWarned = true;
+        console.warn("[easystay] Using in-memory media storage. Configure Cloudflare R2 (R2_*) for production.");
+      }
+      g.__easyStayFiles = createMemoryFileStorage();
+    }
+  }
   return g.__easyStayFiles;
 }

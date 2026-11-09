@@ -210,6 +210,19 @@ export interface SavedItem {
   savedAt: string;
 }
 
+/** Response to an upload request: upload straight to storage, or via the API. */
+export type UploadTicket =
+  | {
+      mode: "direct";
+      uploadUrl: string;
+      method: "PUT";
+      headers: Record<string, string>;
+      path: string;
+      url: string;
+      expiresIn: number;
+    }
+  | { mode: "server" };
+
 export interface UploadedPhoto {
   url: string;
   path: string;

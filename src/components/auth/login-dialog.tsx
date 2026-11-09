@@ -16,7 +16,7 @@ export function LoginDialog({ copy, onClose, onDone }: { copy?: LoginCopy; onClo
   const { user } = useAuth();
   return (
     <AppDialog open onClose={user ? onDone : onClose} title={copy?.title ?? "Log in"} hideTitle>
-      <LoginPanel copy={copy} step={step} onStep={setStep} onDone={onDone} />
+      <LoginPanel copy={copy} step={step} onStep={setStep} onDone={onDone} inDialog />
     </AppDialog>
   );
 }

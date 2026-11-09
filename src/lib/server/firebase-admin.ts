@@ -13,7 +13,6 @@ export function getAdminApp(): App {
   if (existing) return existing;
 
   const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
   if (!projectId) {
     throw new Error("Set FIREBASE_PROJECT_ID (or NEXT_PUBLIC_FIREBASE_PROJECT_ID). See .env.example.");
   }
@@ -21,10 +20,10 @@ export function getAdminApp(): App {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   if (clientEmail && privateKey) {
-    return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId, storageBucket });
+    return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId });
   }
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return initializeApp({ credential: applicationDefault(), projectId, storageBucket });
+    return initializeApp({ credential: applicationDefault(), projectId });
   }
-  return initializeApp({ projectId, storageBucket });
+  return initializeApp({ projectId });
 }

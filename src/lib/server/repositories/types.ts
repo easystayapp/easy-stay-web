@@ -99,7 +99,35 @@ export interface StoredFile {
   path: string;
 }
 
+export interface FileStat {
+  size: number;
+  contentType: string | null;
+}
+
+/** A short-lived URL the browser uploads to directly (no app-server hop). */
+export interface PresignedUpload {
+  uploadUrl: string;
+  method: "PUT";
+  /** Headers the browser must send with the PUT, exactly as given. */
+  headers: Record<string, string>;
+  path: string;
+  url: string;
+  expiresIn: number;
+}
+
+/**
+ * Media storage port (listing photos and any future media). Objects are
+ * addressed by a storage key (`path`); public URLs are always derived from
+ * the key by the adapter, never accepted from clients.
+ */
 export interface FileStorage {
+  /** Public URL for a stored object. */
+  publicUrl(path: string): string;
+  /** Server-side upload (used when direct uploads aren't available). */
   upload(path: string, data: Uint8Array, contentType: string): Promise<StoredFile>;
+  /** Direct browser upload URL, or null if this backend can't presign. */
+  presignUpload(path: string, contentType: string): Promise<PresignedUpload | null>;
+  /** Object metadata, or null if it doesn't exist. */
+  stat(path: string): Promise<FileStat | null>;
   delete(path: string): Promise<void>;
 }

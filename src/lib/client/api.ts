@@ -21,6 +21,7 @@ import type {
   SavedItem,
   SearchResponse,
   Suggestion,
+  UploadTicket,
   UploadedPhoto,
 } from "@/types/api";
 import type { ListingAction } from "@/lib/domain/listing";
@@ -106,7 +107,14 @@ export const api = {
   listingAction: (id: string, action: ListingAction) =>
     request<EditableProperty>("POST", `/api/properties/${enc(id)}/actions`, { action }),
   stats: (id: string) => request<PropertyStats>("GET", `/api/properties/${enc(id)}/stats`),
-  uploadPhoto: (file: File) => {
+  /** Uploads straight to storage (Cloudflare R2) when possible, else via the API. */
+  uploadPhoto: async (file: File): Promise<UploadedPhoto> => {
+    const ticket = await request<UploadTicket>("POST", "/api/uploads/presign", { contentType: file.type, size: file.size });
+    if (ticket.mode === "direct") {
+      const res = await fetch(ticket.uploadUrl, { method: ticket.method, headers: ticket.headers, body: file }).catch(() => null);
+      if (!res?.ok) throw new ApiError(res?.status ?? 0, "upload_failed", "Photo upload failed. Check your connection and try again.", null);
+      return { url: ticket.url, path: ticket.path };
+    }
     const form = new FormData();
     form.append("file", file);
     return request<UploadedPhoto>("POST", "/api/uploads", form);

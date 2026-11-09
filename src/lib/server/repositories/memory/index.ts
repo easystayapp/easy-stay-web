@@ -169,10 +169,19 @@ export function createMemoryRepositories(): Repositories {
 
 export function createMemoryFileStorage(): FileStorage {
   const s = memoryStore();
+  const publicUrl = (path: string) => `/api/files/${path.split("/").map(encodeURIComponent).join("/")}`;
   return {
+    publicUrl,
     async upload(path, data, contentType) {
       s.files.set(path, { data, contentType });
-      return { path, url: `/api/files/${path.split("/").map(encodeURIComponent).join("/")}` };
+      return { path, url: publicUrl(path) };
+    },
+    async presignUpload() {
+      return null; // in-process store: uploads go through /api/uploads
+    },
+    async stat(path) {
+      const f = s.files.get(path);
+      return f ? { size: f.data.byteLength, contentType: f.contentType } : null;
     },
     async delete(path) {
       s.files.delete(path);

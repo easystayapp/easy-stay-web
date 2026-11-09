@@ -32,6 +32,7 @@ export function AppDialog({
       <DialogPortal>
         <DialogOverlay className="z-[60] bg-ink/45 backdrop-blur-[2px]" />
         <DialogPrimitive.Content
+          {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
             "fixed inset-x-0 bottom-0 z-[60] flex max-h-[92vh] flex-col overflow-y-auto rounded-t-[28px] bg-white px-[22px] pt-3 pb-7 text-foreground outline-none",
             "data-open:animate-in data-open:slide-in-from-bottom-8 data-closed:animate-out data-closed:fade-out-0",
@@ -49,11 +50,7 @@ export function AppDialog({
               <XIcon aria-hidden className="size-[18px]" />
             </DialogPrimitive.Close>
           </div>
-          {description ? (
-            <DialogDescription className="mt-1 text-[13px] text-muted-foreground">{description}</DialogDescription>
-          ) : (
-            <DialogDescription className="sr-only">{title}</DialogDescription>
-          )}
+          {description && <DialogDescription className="mt-1 text-[13px] text-muted-foreground">{description}</DialogDescription>}
           {children}
         </DialogPrimitive.Content>
       </DialogPortal>

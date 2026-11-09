@@ -97,7 +97,7 @@ export function SiteHeader() {
             Saved
           </Link>
         </nav>
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        <div className="ml-auto flex items-center gap-2">
           {ownerOn && (
             <Link
               href="/notifications"

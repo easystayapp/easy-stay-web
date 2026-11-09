@@ -174,7 +174,8 @@ function CheckRow({ id, label, checked, onChange }: { id: string; label: string;
 function ListGroup({ g }: { g: Group }) {
   const id = useId();
   return (
-    <FieldSet className="gap-3 border-t border-line-3 pt-5">
+    <div className="border-t border-line-3 pt-5">
+    <FieldSet className="gap-3">
       <FieldLegend className="mb-0 text-sm font-extrabold">{g.label}</FieldLegend>
       {g.kind === "multi" ? (
         g.options.length > 3 ? (
@@ -198,6 +199,7 @@ function ListGroup({ g }: { g: Group }) {
       )}
       {g.flags?.map((fl) => <CheckRow key={fl.key} id={`${id}-${fl.key}`} label={fl.label} checked={fl.on} onChange={fl.toggle} />)}
     </FieldSet>
+    </div>
   );
 }
 

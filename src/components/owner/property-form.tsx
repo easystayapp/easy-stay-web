@@ -37,7 +37,11 @@ export interface FormProps {
   contactPhone: string;
 }
 
-const Req = () => <span className="text-brand-dark">*</span>;
+const Req = () => (
+  <span aria-hidden className="-ml-1 text-brand-dark">
+    *
+  </span>
+);
 
 const money = (v: string) => {
   const n = Number(v.replace(/\D/g, ""));
