@@ -1,57 +1,38 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import Amenties from "@/models/property/Amenties";
-import FurnishedType from "@/models/property/FurnishedType";
-import PropertType from "@/models/property/PropertyType";
-import SharingType from "@/models/property/SharingType";
-import { connectToDatabase } from "@/lib/db";
+/**
+ * Seeds demo listings through the repository layer, so it works with any
+ * backend. Usage:
+ *   npm run seed            # skips if demo data already exists
+ *   npm run seed -- --force # seeds again
+ *
+ * With the emulators running, set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080.
+ */
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  /* no .env.local — rely on the shell environment */
+}
 
+async function main() {
+  const { getRepositories, dataBackend } = await import("@/lib/server/repositories");
+  const { seedDemoData } = await import("@/lib/server/seed/demo");
+  if (dataBackend() === "memory") {
+    console.log("DATA_BACKEND=memory seeds itself on startup — nothing to do.");
+    return;
+  }
+  const repos = await getRepositories();
+  const existing = await repos.properties.listByOwner("demo-owner-rahul");
+  if (existing.length && !process.argv.includes("--force")) {
+    console.log(`Demo data already present (${existing.length} listings). Use --force to add more.`);
+    return;
+  }
+  const created = await seedDemoData(repos);
+  console.log(`Seeded ${created.length} demo listings.`);
+}
 
-dotenv.config(); // Load environment variables
-
-const seedData = async () => {
-    try {
-        await connectToDatabase(); // Connect to MongoDB
-
-        console.log("Connected to MongoDB ✅");
-
-        // Define seeding data
-        const amenities = [
-            { name: "WiFi", description: "High-speed internet connection" },
-            { name: "Parking", description: "Ample parking space available" },
-            { name: "Swimming Pool", description: "Access to a private swimming pool" },
-        ];
-
-        const furnishedTypes = [
-            { name: "Fully Furnished", description: "Includes all necessary furniture" },
-            { name: "Semi Furnished", description: "Some essential furniture included" },
-            { name: "Unfurnished", description: "No furniture provided" },
-        ];
-
-        const propertyTypes = [
-            { name: "Apartment", description: "Self-contained residential unit" },
-            { name: "Villa", description: "Independent luxurious house" },
-            { name: "PG", description: "Paying guest accommodation" },
-        ];
-
-        const sharingTypes = [
-            { name: "Single Occupancy", description: "Room for one person" },
-            { name: "Double Occupancy", description: "Room shared between two people" },
-            { name: "Triple Occupancy", description: "Room shared between three people" },
-        ];
-
-        // Insert Data
-        await Amenties.insertMany(amenities);
-        await FurnishedType.insertMany(furnishedTypes);
-        await PropertType.insertMany(propertyTypes);
-        await SharingType.insertMany(sharingTypes);
-
-        console.log("Data seeded successfully 🎉");
-        mongoose.connection.close();
-    } catch (error) {
-        console.error("Error seeding data ❌:", error);
-        mongoose.connection.close();
-    }
-};
-
-seedData();
+main().then(
+  () => process.exit(0),
+  (err) => {
+    console.error(err);
+    process.exit(1);
+  },
+);

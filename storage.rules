@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Photos are uploaded through /api/uploads (Admin SDK) and served via
+// download-token URLs, so direct client access is not needed.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

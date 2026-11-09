@@ -1,12 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    allowedDevOrigins: [
-      "http://localhost:3000",
-      "http://business.localhost:3000"
-    ],
-  },
+  poweredByHeader: false,
 };
 
 export default nextConfig;

@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * EasyStay design tokens — from the "EasyStay App Design" brand & UI kit.
+ * shadcn/ui semantic tokens (primary, input, ring…) are mapped onto the
+ * brand palette in :root below, so every shadcn component is on-brand.
+ */
+@theme {
+  --color-coral: #ff4d63; /* brand, icons */
+  --color-brand: #d62843; /* buttons, links */
+  --color-brand-dark: #a81e33; /* chip text, hover */
+  --color-blush: #fff1f2; /* tints, chips */
+  --color-blush-2: #fbe3e6;
+  --color-blush-line: #f5c2ca;
+  --color-ink: #1e1b1f; /* text */
+  --color-muted-2: #4f4a50; /* secondary body text */
+  --color-line: #f0e6e8;
+  --color-line-2: #e5dcde;
+  --color-line-3: #f5eeef;
+  --color-surface: #f7f3f4;
+  --color-surface-2: #faf8f8;
+  --color-star: #f5b83d;
+  --color-chat: #0e7a41; /* WhatsApp */
+  --color-chat-bubble: #dcf5e5;
+  --color-chat-ink: #12301f;
+
+  --color-ok: #0b6537;
+  --color-ok-bg: #e3f5ec;
+  --color-warn: #7a4a00;
+  --color-warn-bg: #fff1d6;
+  --color-info: #2c3f9e;
+  --color-info-bg: #e8ecff;
+  --color-pause: #4f4a50;
+  --color-pause-bg: #f1eeef;
+
+  --color-tint-1: #fbe3e6;
+  --color-tint-2: #f6eae0;
+  --color-tint-3: #e9eef4;
+
+  --shadow-card: 0 6px 18px rgba(214, 40, 67, 0.06);
+  --shadow-pop: 0 12px 32px rgba(214, 40, 67, 0.12);
+  --shadow-sheet: 0 14px 30px rgba(30, 27, 31, 0.16);
+}
+
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* The design is light-only. */
+:root {
+  --background: #ffffff;
+  --foreground: #1e1b1f;
+  --card: #ffffff;
+  --card-foreground: #1e1b1f;
+  --popover: #ffffff;
+  --popover-foreground: #1e1b1f;
+  --primary: #d62843;
+  --primary-foreground: #ffffff;
+  --secondary: #fff1f2;
+  --secondary-foreground: #a81e33;
+  --muted: #f7f3f4;
+  --muted-foreground: #5f5a60;
+  --accent: #fff1f2;
+  --accent-foreground: #a81e33;
+  --destructive: #d62843;
+  --border: #f0e6e8;
+  --input: #e5dcde;
+  --ring: #d62843;
+  --radius: 0.625rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  a {
+    @apply text-brand;
+  }
+  a:hover {
+    @apply text-brand-dark;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1240px] px-4 sm:px-6;
+  }
+  .eyebrow {
+    @apply text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase;
+  }
+}
