@@ -18,7 +18,7 @@ async function loadCatalog(repos: Repositories): Promise<Catalog> {
   return {
     cities,
     defaultCity: cities.find((c) => c.id === app?.defaultCityId)?.label ?? fallback,
-    home: home ?? { budgets: [], categories: [], steps: [] },
+    home: { budgets: [], categories: [], steps: [], highlights: [], faqs: [], ...home },
     welcome: welcome ?? { roles: [] },
     greetings: app?.greetings ?? { pg: "", room: "", flat: "" },
   };

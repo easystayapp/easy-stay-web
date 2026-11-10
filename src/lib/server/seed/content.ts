@@ -96,6 +96,19 @@ export const SEED_HOME: HomeContent = {
     { title: "Co-living", hint: "Open to anyone", icon: "coliving", types: [], genders: ["anyone"], food: null },
     { title: "With food", hint: "Meals included", icon: "food", types: [], genders: [], food: true },
   ],
+  highlights: [
+    { icon: "shield", title: "No brokers", body: "Deal straight with the owner. No commission, no middlemen." },
+    { icon: "phone", title: "Call or WhatsApp", body: "Contact owners directly the moment you find a place you like." },
+    { icon: "star", title: "Honest ratings", body: "Only people who contacted the owner can rate, so reviews are real." },
+    { icon: "calendar", title: "Fresh listings", body: "Every listing is live for just 15 days, so what you see is available." },
+  ],
+  faqs: [
+    { question: "Do I need an account to browse?", answer: "No. Search, filters and listing details are open to everyone. Log in with Google only to contact an owner, save a place or rate it." },
+    { question: "Does EasyStay charge brokerage?", answer: "No. You speak to the owner directly by call or WhatsApp, and EasyStay never takes a commission." },
+    { question: "How do I know a place is still available?", answer: "Listings stay live for 15 days and then drop off unless the owner reposts them. Contact the owner to confirm before you visit." },
+    { question: "How do ratings work?", answer: "The combined rating averages Property, Owner, Environment, Value and Food. Only people who contacted the owner through EasyStay can rate, and a place shows “New” until it has 3 ratings." },
+    { question: "I own a PG or flat. How do I list it?", answer: "Tap List property, sign in with Google and add the number seekers should call. Listing is free and takes about 2 minutes." },
+  ],
   steps: [
     { title: "Browse freely", body: "Search, filter and open any listing without an account. Only available places are shown." },
     { title: "Log in to connect", body: "One tap with Google — and you're right back on the property you picked." },

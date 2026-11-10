@@ -70,6 +70,8 @@ const fromDoc = {
     budgets: list(d.budgets).map((b) => ({ label: str(b.label), minRent: numOrNull(b.minRent), maxRent: numOrNull(b.maxRent) })),
     categories: list(d.categories).map(categoryIn),
     steps: list(d.steps).map((s) => ({ title: str(s.title), body: str(s.body) })),
+    highlights: list(d.highlights).map((h) => ({ icon: (str(h.icon) || "shield") as HomeContent["highlights"][number]["icon"], title: str(h.title), body: str(h.body) })),
+    faqs: list(d.faqs).map((f) => ({ question: str(f.question), answer: str(f.answer) })),
   }),
   welcome: (d: Doc): WelcomeContent => ({
     roles: list(d.roles)

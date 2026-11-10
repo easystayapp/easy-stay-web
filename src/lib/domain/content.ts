@@ -47,10 +47,28 @@ export interface Step {
   body: string;
 }
 
+/** Icon names the web maps to its icon set (unknown names fall back to a shield). */
+export const HIGHLIGHT_ICONS = ["shield", "phone", "star", "calendar"] as const;
+export type HighlightIcon = (typeof HIGHLIGHT_ICONS)[number];
+
+/** A short promise shown in the strip under the hero. */
+export interface Highlight {
+  icon: HighlightIcon;
+  title: string;
+  body: string;
+}
+
+export interface Faq {
+  question: string;
+  answer: string;
+}
+
 export interface HomeContent {
   budgets: BudgetPreset[];
   categories: Category[];
   steps: Step[];
+  highlights: Highlight[];
+  faqs: Faq[];
 }
 
 export type Audience = "seeker" | "owner";

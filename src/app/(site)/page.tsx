@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, Building2, House, MapPin, Search, SlidersHorizontal, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
+import { ArrowRight, BedDouble, Building2, CalendarClock, ChevronDown, House, MapPin, PhoneCall, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ import { api } from "@/lib/client/api";
 import { cx } from "@/lib/client/cx";
 import { welcomeSeen } from "@/lib/client/prefs";
 import { useCatalog } from "@/hooks/use-catalog";
-import { popularLocalities, type CategoryIcon } from "@/lib/domain/content";
+import { popularLocalities, type CategoryIcon, type HighlightIcon } from "@/lib/domain/content";
 import type { FeaturedStay, PropertyCard as Card } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
@@ -36,6 +36,13 @@ function SegmentIcon({ icon: Icon }: { icon: typeof MapPin }) {
     </span>
   );
 }
+
+const HIGHLIGHT_ICON: Record<HighlightIcon, typeof House> = {
+  shield: ShieldCheck,
+  phone: PhoneCall,
+  star: Star,
+  calendar: CalendarClock,
+};
 
 /** Category icons are code; which categories exist (and their filters) comes from the database. */
 const CATEGORY_ICON: Record<CategoryIcon, typeof House> = {
@@ -226,6 +233,27 @@ export default function HomePage() {
         </div>
       </section>
 
+      {home.highlights.length > 0 && (
+        <section aria-label="Why EasyStay" className="container-page pt-8 md:pt-10">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {home.highlights.map((h) => {
+              const Icon = HIGHLIGHT_ICON[h.icon] ?? ShieldCheck;
+              return (
+                <li key={h.title} className="flex items-start gap-3.5">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blush text-brand">
+                    <Icon aria-hidden className="size-5" />
+                  </span>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-[15px] font-extrabold">{h.title}</span>
+                    <span className="text-[13px] leading-relaxed text-muted-foreground">{h.body}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="container-page pt-12 md:pt-14">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">Browse by type</h2>
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
@@ -269,6 +297,44 @@ export default function HomePage() {
         )}
       </section>
 
+      {cities.length > 1 && (
+        <section className="container-page pt-14 md:pt-16">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Explore cities</h2>
+            <span className="text-sm text-muted-foreground">Stays near the main job hubs</span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cities.map((c) => (
+              <Link
+                key={c.id}
+                href={`/properties?${serializeFilters({ ...emptyFilters(c.label) })}`}
+                onClick={() => setCity(c.label)}
+                className="group flex flex-col gap-3 rounded-[22px] border-[1.5px] border-line p-5 text-ink transition-colors hover:border-blush-line hover:bg-blush/40 hover:text-ink"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="flex flex-col">
+                    <span className="text-lg font-extrabold">{c.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.state} · {c.localities.length} areas
+                    </span>
+                  </span>
+                  <span className="flex size-9 items-center justify-center rounded-full bg-blush text-brand transition-transform group-hover:translate-x-0.5">
+                    <ArrowRight aria-hidden className="size-4" />
+                  </span>
+                </span>
+                <span className="flex flex-wrap gap-1.5">
+                  {c.popular.slice(0, 4).map((l) => (
+                    <span key={l} className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted-2">
+                      {l}
+                    </span>
+                  ))}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="container-page pt-14 md:pt-16">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">How EasyStay works</h2>
         <ol className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
@@ -281,6 +347,30 @@ export default function HomePage() {
           ))}
         </ol>
       </section>
+
+      {home.faqs.length > 0 && (
+        <section className="container-page pt-14 md:pt-16">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,320px)_1fr] lg:gap-14">
+            <div className="flex flex-col gap-2">
+              <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Questions, answered</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                More in the <Link href="/help">help centre</Link>.
+              </p>
+            </div>
+            <div className="flex flex-col divide-y divide-line rounded-[22px] border-[1.5px] border-line">
+              {home.faqs.map((f) => (
+                <details key={f.question} className="group px-5 py-4 [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-bold outline-none focus-visible:text-brand">
+                    {f.question}
+                    <ChevronDown aria-hidden className="size-4 shrink-0 text-brand transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="pt-2.5 pr-8 text-sm leading-relaxed text-muted-2">{f.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="container-page py-14 md:py-16">
         <div className="flex flex-wrap items-center justify-between gap-6 rounded-[28px] bg-ink p-8 text-white md:p-10">

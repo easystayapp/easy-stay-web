@@ -6,6 +6,7 @@
  *   npm run seed:content                  # create missing documents
  *   npm run seed:content -- --dry-run     # show what would happen
  *   npm run seed:content -- --overwrite   # replace existing documents with the seed values
+ *   npm run seed:content -- --overwrite --only=content/home   # limit to documents whose path starts with this
  */
 try {
   process.loadEnvFile(".env.local");
@@ -23,7 +24,9 @@ async function main() {
   console.log(`${dryRun ? "[dry run] " : ""}Content → ${target}${overwrite ? " (overwrite)" : ""}`);
 
   let wrote = 0;
+  const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
   const step = async (label: string, exists: boolean, write: () => Promise<void>) => {
+    if (only && !label.startsWith(only)) return;
     const action = exists && !overwrite ? "keep" : exists ? "replace" : "create";
     console.log(`  ${action.padEnd(7)} ${label}`);
     if (action !== "keep" && !dryRun) {

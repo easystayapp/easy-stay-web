@@ -6,7 +6,7 @@ import type { Catalog } from "@/lib/domain/content";
 export const EMPTY_CATALOG: Catalog = {
   cities: [],
   defaultCity: "",
-  home: { budgets: [], categories: [], steps: [] },
+  home: { budgets: [], categories: [], steps: [], highlights: [], faqs: [] },
   welcome: { roles: [] },
   greetings: { pg: "", room: "", flat: "" },
 };
