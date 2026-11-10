@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    allowedDevOrigins: [
-      "http://localhost:3000",
-      "http://business.localhost:3000"
-    ],
+  poweredByHeader: false,
+  async headers() {
+    const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+    return ["/my-listings/:path*", "/profile/:path*", "/saved", "/notifications", "/owner/:path*", "/login", "/welcome", "/search"].map((source) => ({ source, headers: noindex }));
   },
 };
 

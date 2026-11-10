@@ -1,0 +1,407 @@
+import type {
+  TopOwner,
+  EditableProperty,
+  FeaturedStay,
+  OwnerListingsResponse,
+  PropertyDetail,
+  PropertyStats,
+  ReminderItem,
+  SearchResponse,
+  Suggestion,
+} from "@/types/api";
+import { DomainError } from "@/lib/domain/errors";
+import { assertActive, requireVerifiedEmail } from "./ops/guard";
+import { assertNotHidden } from "./ops/verification";
+import { normalizeIndianMobile } from "@/lib/domain/format";
+import {
+  applyListingAction,
+  daysLeft,
+  effectiveStatus,
+  isPubliclyVisible,
+  LISTING_ACTIONS,
+  listingDay,
+  listingReminders,
+  newListingWindow,
+  type ListingAction,
+} from "@/lib/domain/listing";
+import { emptySummary } from "@/lib/domain/rating";
+import {
+  emptyFilters,
+  matchesFilters,
+  normalizeText,
+  PAGE_SIZE,
+  pickFeatured,
+  sortProperties,
+  type SearchFilters,
+} from "@/lib/domain/search";
+import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
+import { firstName, formatRupees } from "@/lib/domain/format";
+import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/time";
+import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
+import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
+import type { AuthUser } from "../auth";
+import type { Repositories } from "../repositories";
+import { deleteMedia, verifyPhotos } from "./media";
+import { popularIn } from "./content";
+import { factorAverages, toCard, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
+import { requireOwner } from "./users";
+
+const CANDIDATE_LIMIT = 500;
+
+/* -------------------------------------------------------------- public */
+
+export async function searchProperties(repos: Repositories, filters: SearchFilters): Promise<SearchResponse> {
+  const now = new Date();
+  const candidates = await repos.properties.findCandidates(filters, CANDIDATE_LIMIT);
+  const matched = sortProperties(
+    candidates.filter((p) => matchesFilters(p, filters, now)),
+    filters.sort,
+  );
+  const pageCount = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
+  const page = Math.min(filters.page, pageCount);
+  return {
+    items: matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(toCard),
+    total: matched.length,
+    page,
+    pageCount,
+  };
+}
+
+/** Top-rated stays in a city, mixed across PG / room / flat (home carousel). */
+export async function featuredProperties(repos: Repositories, city: string, n = 5): Promise<FeaturedStay[]> {
+  const now = new Date();
+  const visible = (await repos.properties.findCandidates(emptyFilters(city), CANDIDATE_LIMIT)).filter((p) => isPubliclyVisible(p, now));
+  return pickFeatured(visible, n).map(toCard);
+}
+
+export async function searchSuggestions(repos: Repositories, q: string, city: string): Promise<Suggestion[]> {
+  const tokens = normalizeText(q);
+  if (!tokens.length || tokens.join("").length < 2) return [];
+  const matchesQ = (text: string) => {
+    const words = normalizeText(text);
+    return tokens.every((t) => words.some((w) => w.startsWith(t)));
+  };
+
+  const candidates = await repos.properties.findCandidates({ ...emptyFilters(city), q }, CANDIDATE_LIMIT);
+  const now = new Date();
+  const visible = candidates.filter((p) => isPubliclyVisible(p, now) && p.location.city === city);
+  const counts = new Map<string, Set<PropertyType>>();
+  for (const p of visible) {
+    if (!matchesQ(p.location.locality)) continue;
+    const set = counts.get(p.location.locality) ?? new Set();
+    set.add(p.type);
+    counts.set(p.location.locality, set);
+  }
+  for (const l of await popularIn(repos, city)) if (matchesQ(l) && !counts.has(l)) counts.set(l, new Set());
+
+  const out: Suggestion[] = [];
+  const localities = [...counts.keys()].slice(0, 3);
+  for (const l of localities) out.push({ kind: "locality", label: l, sub: `Locality · ${city}`, query: { q: l } });
+
+  // Listings whose name matches ("Sunrise PG", "SLVS hostel").
+  for (const p of visible.filter((p) => matchesQ(p.title)).slice(0, 3)) {
+    out.push({
+      kind: "property",
+      label: p.title,
+      sub: `${PROPERTY_TYPE_LABEL[p.type]} · ${p.location.locality} · ${formatRupees(p.rent)}/mo`,
+      query: { q: p.title },
+      href: `/properties/${p.id}`,
+      imageUrl: p.photos[0]?.url ?? null,
+    });
+  }
+
+  const top = localities[0];
+  if (top) {
+    const types = counts.get(top)!;
+    for (const t of (types.size ? [...types] : (["pg", "flat"] as PropertyType[])).slice(0, 3)) {
+      const noun = t === "pg" ? "PGs" : t === "room" ? "Rooms" : "Flats";
+      out.push({ kind: "type", label: `${noun} in ${top}`, sub: `Property type · ${PROPERTY_TYPE_LABEL[t]}`, query: { q: top, type: t } });
+    }
+  }
+  return out.slice(0, 9);
+}
+
+async function loadProperty(repos: Repositories, id: string): Promise<Property> {
+  const p = await repos.properties.get(id);
+  if (!p) throw new DomainError("not_found", "This property no longer exists.");
+  return p;
+}
+
+export async function getPropertyDetail(
+  repos: Repositories,
+  id: string,
+  auth: AuthUser | null,
+): Promise<PropertyDetail> {
+  const p = await loadProperty(repos, id);
+  const isOwner = auth?.uid === p.ownerId;
+  if (!isOwner && !isPubliclyVisible(p)) {
+    throw new DomainError("not_found", "This property is no longer available. It may have been rented or expired.");
+  }
+  const [owner, theirs] = await Promise.all([repos.users.get(p.ownerId), repos.properties.listByOwner(p.ownerId)]);
+  const now = new Date();
+  const live = theirs.filter((x) => isPubliclyVisible(x, now));
+  const { sum, count } = ownerScore(live.length ? live : [p]);
+  return toDetail(p, owner, auth?.uid ?? null, {
+    ownerRating: count ? Math.round((sum / count) * 10) / 10 : null,
+    ratingCount: count,
+    listings: live.length,
+  });
+}
+
+/** One view per person (or device) per day; owners viewing their own listing don't count. */
+export async function recordView(
+  repos: Repositories,
+  id: string,
+  auth: AuthUser | null,
+  deviceId: unknown,
+): Promise<{ counted: boolean }> {
+  const p = await loadProperty(repos, id);
+  if (!isPubliclyVisible(p) || auth?.uid === p.ownerId) return { counted: false };
+  let viewer: string;
+  if (auth) viewer = `u:${auth.uid}`;
+  else if (typeof deviceId === "string" && /^[A-Za-z0-9-]{8,64}$/.test(deviceId)) viewer = `d:${deviceId}`;
+  else return { counted: false };
+  const now = new Date();
+  return { counted: await repos.views.recordUnique(p.id, viewer, dayKey(now), now) };
+}
+
+/* --------------------------------------------------------------- owner */
+
+async function loadOwned(repos: Repositories, auth: AuthUser, id: string) {
+  const owner = await requireOwner(repos, auth);
+  const p = await loadProperty(repos, id);
+  if (p.ownerId !== auth.uid) throw new DomainError("forbidden", "You can only manage your own listings.");
+  return { owner, p };
+}
+
+function buildFields(input: PropertyInput, owner: User & { owner: NonNullable<User["owner"]> }) {
+  return {
+    type: input.type,
+    sharing: input.sharing,
+    title: input.title,
+    rent: input.rent ?? 0,
+    deposit: input.deposit,
+    location: { city: input.city, locality: input.locality, address: input.address, geo: input.geo },
+    photos: input.photos,
+    availableFor: input.availableFor,
+    contact: { phone: owner.owner.contactPhone, whatsapp: input.whatsapp ? normalizeIndianMobile(input.whatsapp) : null },
+    furnishing: input.furnishing,
+    food: input.food,
+    amenities: input.amenities,
+    electricity: input.electricity,
+    availableFrom: input.availableFrom ? parseDayKey(input.availableFrom) : null,
+    description: input.description,
+  } satisfies Partial<Property>;
+}
+
+
+export async function createProperty(
+  repos: Repositories,
+  auth: AuthUser,
+  body: unknown,
+  publish: boolean,
+): Promise<EditableProperty> {
+  const owner = await requireOwner(repos, auth);
+  await assertActive(repos, auth);
+  requireVerifiedEmail(auth);
+  const input = assertPropertyInput(body, publish ? "publish" : "draft");
+  input.photos = await verifyPhotos(auth.uid, input.photos);
+  const now = new Date();
+  const p = await repos.properties.create({
+    ownerId: auth.uid,
+    ...buildFields(input, owner),
+    status: publish ? "active" : "draft",
+    ...(publish ? newListingWindow(now) : { publishedAt: null, expiresAt: null }),
+    availabilityConfirmedAt: null,
+    viewCount: 0,
+    ratingSummary: emptySummary(),
+    createdAt: now,
+    updatedAt: now,
+  });
+  return toEditable(p, now);
+}
+
+export async function getEditableProperty(repos: Repositories, auth: AuthUser, id: string): Promise<EditableProperty> {
+  const { p } = await loadOwned(repos, auth, id);
+  return toEditable(p);
+}
+
+export async function updateProperty(
+  repos: Repositories,
+  auth: AuthUser,
+  id: string,
+  body: unknown,
+): Promise<EditableProperty> {
+  const { owner, p } = await loadOwned(repos, auth, id);
+  const input = assertPropertyInput(body, p.status === "draft" ? "draft" : "publish");
+  input.photos = await verifyPhotos(auth.uid, input.photos, p.photos);
+  const fields = buildFields(input, owner);
+  const now = new Date();
+  await repos.properties.update(id, { ...fields, updatedAt: now });
+  const kept = new Set(input.photos.map((x) => x.path));
+  await deleteMedia(p.photos.map((x) => x.path).filter((path) => !kept.has(path)));
+  return toEditable({ ...p, ...fields, updatedAt: now });
+}
+
+export async function deleteProperty(repos: Repositories, auth: AuthUser, id: string): Promise<void> {
+  const { p } = await loadOwned(repos, auth, id);
+  await repos.properties.delete(id);
+  await deleteMedia(p.photos.map((x) => x.path));
+}
+
+export async function applyAction(
+  repos: Repositories,
+  auth: AuthUser,
+  id: string,
+  action: unknown,
+): Promise<EditableProperty> {
+  if (!LISTING_ACTIONS.includes(action as ListingAction)) {
+    throw new DomainError("invalid_input", "Unknown action.");
+  }
+  const { p } = await loadOwned(repos, auth, id);
+  await assertActive(repos, auth);
+  // An admin-hidden listing can't be brought back by its owner.
+  if (action !== "pause" && action !== "rented") await assertNotHidden(repos, id);
+  const now = new Date();
+  if (action === "publish") {
+    // A draft must be complete before going live.
+    assertPropertyInput(toInput(p), "publish");
+  }
+  const patch = applyListingAction(p, action as ListingAction, now);
+  await repos.properties.update(id, { ...patch, updatedAt: now });
+  return toEditable({ ...p, ...patch, updatedAt: now }, now);
+}
+
+/** Persists the derived `expired` status so stored data stays truthful. */
+async function settleExpired(repos: Repositories, items: Property[], now: Date) {
+  const stale = items.filter((p) => p.status === "active" && effectiveStatus(p, now) === "expired");
+  await Promise.all(stale.map((p) => repos.properties.update(p.id, { status: "expired" })));
+}
+
+export async function listOwnerListings(repos: Repositories, auth: AuthUser): Promise<OwnerListingsResponse> {
+  const owner = await requireOwner(repos, auth);
+  const now = new Date();
+  const items = await repos.properties.listByOwner(auth.uid);
+  await settleExpired(repos, items, now);
+
+  const counts: OwnerListingsResponse["counts"] = { total: items.length, draft: 0, active: 0, paused: 0, rented: 0, expired: 0 };
+  for (const p of items) counts[effectiveStatus(p, now)] += 1;
+
+  const order: Record<ListingStatus, number> = { active: 0, draft: 1, paused: 2, expired: 3, rented: 4 };
+  const sorted = [...items].sort(
+    (a, b) =>
+      order[effectiveStatus(a, now)] - order[effectiveStatus(b, now)] ||
+      b.updatedAt.getTime() - a.updatedAt.getTime(),
+  );
+
+  // The most urgent pre-expiry reminder becomes the dashboard banner.
+  let reminder: ReminderItem | null = null;
+  if (owner.owner.notify.expiryReminders) {
+    const due = items
+      .filter((p) => effectiveStatus(p, now) === "active")
+      .flatMap((p) => listingReminders(p, now).map((r) => ({ r, p })))
+      .sort((a, b) => a.r.daysLeft - b.r.daysLeft || (a.p.expiresAt!.getTime() - b.p.expiresAt!.getTime()));
+    if (due[0]) {
+      const { r, p } = due[0];
+      reminder = {
+        id: r.id,
+        kind: r.kind,
+        propertyId: p.id,
+        propertyTitle: p.title,
+        at: r.at.toISOString(),
+        daysLeft: daysLeft(p, now) ?? r.daysLeft,
+      };
+    }
+  }
+  return { items: sorted.map((p) => toOwnerListing(p, now)), counts, reminder };
+}
+
+export async function listNotifications(repos: Repositories, auth: AuthUser): Promise<ReminderItem[]> {
+  const user = await repos.users.get(auth.uid);
+  if (!user?.owner?.enabled || !user.owner.notify.expiryReminders) return [];
+  const now = new Date();
+  const items = await repos.properties.listByOwner(auth.uid);
+  return items
+    .flatMap((p) =>
+      listingReminders(p, now).map<ReminderItem>((r) => ({
+        id: r.id,
+        kind: r.kind,
+        propertyId: p.id,
+        propertyTitle: p.title,
+        at: r.at.toISOString(),
+        daysLeft: r.daysLeft,
+      })),
+    )
+    .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export async function getPropertyStats(repos: Repositories, auth: AuthUser, id: string): Promise<PropertyStats> {
+  const { p } = await loadOwned(repos, auth, id);
+  const now = new Date();
+  const last7Keys = lastDayKeys(7, now);
+  const periodKeys = p.publishedAt ? dayKeysBetween(p.publishedAt, p.expiresAt && p.expiresAt < now ? p.expiresAt : now, 30) : [];
+  const keys = [...new Set([...last7Keys, ...periodKeys])];
+  const counts = new Map((await repos.views.dailyCounts(p.id, keys)).map((d) => [d.date, d.count]));
+  return {
+    id: p.id,
+    title: p.title,
+    locality: p.location.locality,
+    status: effectiveStatus(p, now),
+    totalViews: p.viewCount,
+    periodViews: periodKeys.reduce((n, k) => n + (counts.get(k) ?? 0), 0),
+    last7: last7Keys.map((date) => ({ date, count: counts.get(date) ?? 0 })),
+    daysLeft: daysLeft(p, now),
+    listingDay: effectiveStatus(p, now) === "active" ? listingDay(p, now) : null,
+    publishedAt: p.publishedAt?.toISOString() ?? null,
+    expiresAt: p.expiresAt?.toISOString() ?? null,
+    rating: { average: p.ratingSummary.average, count: p.ratingSummary.count },
+    factors: factorAverages(p),
+  };
+}
+
+/** Sum and count of the "owner" score across a set of listings. */
+function ownerScore(list: Property[]) {
+  let sum = 0;
+  let count = 0;
+  for (const x of list) {
+    const t = x.ratingSummary.factors.owner;
+    if (t?.count) {
+      sum += t.sum;
+      count += t.count;
+    }
+  }
+  return { sum, count };
+}
+
+/**
+ * Best-rated owners in a city, ranked by their "owner" score across every live
+ * listing. Only owners with at least one real rating appear, best first.
+ */
+export async function topOwners(repos: Repositories, city: string, n = 6): Promise<TopOwner[]> {
+  const now = new Date();
+  const visible = (await repos.properties.findCandidates(emptyFilters(city), CANDIDATE_LIMIT)).filter((p) => isPubliclyVisible(p, now));
+  const byOwner = new Map<string, Property[]>();
+  for (const p of visible) byOwner.set(p.ownerId, [...(byOwner.get(p.ownerId) ?? []), p]);
+
+  const ranked = [...byOwner.entries()]
+    .map(([ownerId, list]) => {
+      const { sum, count } = ownerScore(list);
+      const best = [...list].sort((a, b) => (b.ratingSummary.average ?? 0) - (a.ratingSummary.average ?? 0) || b.ratingSummary.count - a.ratingSummary.count)[0];
+      return { ownerId, list, count, rating: count ? sum / count : 0, best };
+    })
+    .filter((o) => o.count > 0)
+    .sort((a, b) => b.rating - a.rating || b.count - a.count)
+    .slice(0, n);
+  if (!ranked.length) return [];
+
+  const users = new Map((await repos.users.getMany(ranked.map((o) => o.ownerId))).map((u) => [u.id, u]));
+  return ranked.map((o) => ({
+    name: firstName(users.get(o.ownerId)?.displayName || "Owner"),
+    rating: Math.round(o.rating * 10) / 10,
+    ratingCount: o.count,
+    listings: o.list.length,
+    locality: o.best.location.locality,
+    propertyId: o.best.id,
+    coverUrl: o.best.photos[0]?.url ?? null,
+  }));
+}

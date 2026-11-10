@@ -1,0 +1,69 @@
+// Shared with the Android app (easystayapp/easy-stay-mobile-app, develop: firestore.rules).
+// Both apps use this database, so keep the two copies identical. The web app's
+// server uses the Admin SDK, which these rules don't restrict.
+
+rules_version = '2';
+
+// EasyStay — Firestore security rules.
+// Deploy: Firebase console → Firestore → Rules (paste), or `firebase deploy --only firestore:rules`.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isUser(uid) { return signedIn() && request.auth.uid == uid; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // ── Listings ─────────────────────────────────────────────
+    match /properties/{propertyId} {
+      // Anyone can browse (guests included).
+      allow read: if true;
+
+      // Owners create listings under their own uid.
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'ACTIVE';
+
+      // Owners edit their own listings (ownerId can't change).
+      // Anyone may bump only the view counters (Details screen records a view).
+      allow update: if (isUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId)
+        || changed().hasOnly(['totalViews', 'periodViews', 'dailyViews']);
+
+      allow delete: if isUser(resource.data.ownerId);
+
+      // Phone / WhatsApp: hidden from guests, written only by the owner.
+      match /private/contact {
+        allow read: if signedIn();
+        allow write: if isUser(get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId)
+          || (signedIn() && request.resource.data.ownerId == request.auth.uid
+              && !exists(/databases/$(database)/documents/properties/$(propertyId)));
+      }
+    }
+
+    // ── Ratings: one per person per property (doc id r_<propertyId>_<uid>) ──
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && reviewId == 'r_' + request.resource.data.propertyId + '_' + request.auth.uid
+        // Only people who contacted the owner through EasyStay can rate.
+        && request.resource.data.propertyId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.contacted;
+      allow delete: if false; // ratings stay with the property
+    }
+
+    // ── Reference data & content (cities, app config, home/welcome content, pages) ──
+    // Public to read; written only by the server / seed script (Admin SDK).
+    match /cities/{cityId}   { allow read: if true; allow write: if false; }
+    match /config/{docId}    { allow read: if true; allow write: if false; }
+    match /content/{docId}   { allow read: if true; allow write: if false; }
+    match /pages/{slug}      { allow read: if true; allow write: if false; }
+
+    // ── Web-only transactional collections (enquiries, enquiries/*/messages, userMeta,
+    //    verifications, propertySafety, cases, auditLog, notifications) have no match
+    //    block on purpose: clients are denied and the server uses the Admin SDK. ──
+
+    // ── User profiles: saved, contacted, owner settings, FCM tokens ──
+    match /users/{uid} {
+      allow read, write: if isUser(uid);
+    }
+  }
+}
