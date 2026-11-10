@@ -1,6 +1,8 @@
 /**
- * Temporary deployment diagnostics. Reports whether each setting is present and
- * well-formed and what Firestore says, but NEVER the values themselves.
+ * Temporary deployment diagnostics. Publicly it reports only booleans, the
+ * credential "shape", and a Firestore status/error code with a hint; never values,
+ * the project id or raw error text. The full error message is returned only with
+ * ?token=<HEALTH_TOKEN> (if that env var is set) and is always logged server-side.
  * Remove once production is healthy.
  */
 export const dynamic = "force-dynamic";
@@ -12,7 +14,7 @@ function serviceAccountShape() {
   if (!raw) return "missing";
   try {
     const j = JSON.parse(raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8"));
-    return j.client_email && j.private_key?.includes("BEGIN PRIVATE KEY") ? `ok (project ${j.project_id})` : "parsed, but missing client_email/private_key";
+    return j.client_email && j.private_key?.includes("BEGIN PRIVATE KEY") ? "ok" : "parsed, but missing client_email/private_key";
   } catch {
     return "present but not valid base64/JSON";
   }
@@ -28,7 +30,17 @@ function privateKeyShape() {
   ].join(", ");
 }
 
-export async function GET() {
+/** gRPC status codes Firestore uses, mapped to what to fix. */
+const HINT: Record<string, string> = {
+  "16": "UNAUTHENTICATED: the service-account key is wrong, revoked or rotated.",
+  "7": "PERMISSION_DENIED: the service account lacks Firestore access, or the project id is wrong.",
+  "5": "NOT_FOUND: no Firestore database in this project.",
+  "14": "UNAVAILABLE: network problem reaching Firestore.",
+};
+
+export async function GET(req: Request) {
+  const token = process.env.HEALTH_TOKEN;
+  const verbose = !!token && new URL(req.url).searchParams.get("token") === token;
   const report: Record<string, unknown> = {
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     region: process.env.VERCEL_REGION ?? null,
@@ -36,7 +48,10 @@ export async function GET() {
       ["DATA_BACKEND", "FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "GOOGLE_APPLICATION_CREDENTIALS", "STORAGE_BACKEND", "R2_BUCKET", "NEXT_PUBLIC_SITE_URL"].map((k) => [k, has(k)]),
     ),
     dataBackend: process.env.DATA_BACKEND ?? "(default firestore)",
-    projectId: process.env.FIREBASE_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? null,
+    projectIdsMatch:
+      !process.env.FIREBASE_PROJECT_ID || !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        ? null
+        : process.env.FIREBASE_PROJECT_ID === process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     FIREBASE_SERVICE_ACCOUNT: serviceAccountShape(),
     FIREBASE_PRIVATE_KEY: privateKeyShape(),
   };
@@ -48,7 +63,14 @@ export async function GET() {
   } catch (err) {
     const e = err as Error & { code?: unknown };
     report.firestore = "FAILED";
-    report.error = { name: e.name, code: e.code ?? null, message: String(e.message).slice(0, 400) };
+    console.error("[health] Firestore check failed", err); // full detail in Vercel logs only
+    const code = e.code == null ? null : String(e.code);
+    report.error = {
+      name: e.name,
+      code,
+      hint: (code && HINT[code]) || (/credential|private key|PEM|DECODER/i.test(String(e.message)) ? "Credential could not be parsed or loaded." : "See the server log."),
+      ...(verbose ? { message: String(e.message).slice(0, 400) } : {}),
+    };
   }
   return Response.json(report, { headers: { "cache-control": "no-store", "x-robots-tag": "noindex" } });
 }
