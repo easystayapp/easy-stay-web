@@ -7,10 +7,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FeaturedCarousel } from "@/components/property/featured-carousel";
 import { PropertyCard } from "@/components/property/property-card";
+import { LocalityCombobox } from "@/components/search/locality-combobox";
 import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/page-spinner";
@@ -106,13 +106,7 @@ export default function HomePage() {
             >
               <div className="flex min-w-0 flex-[2_1_220px] flex-col gap-1 rounded-xl bg-surface px-3.5 py-2">
                 <Label htmlFor="hero-q" className="text-[11px] text-muted-foreground">Location</Label>
-                <Input
-                  id="hero-q"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={`Area in ${city}`}
-                  className="h-auto rounded-none border-0 bg-transparent p-0 text-[15px] font-bold focus-visible:ring-0"
-                />
+                <LocalityCombobox id="hero-q" city={city} value={q} onChange={setQ} inputClassName="text-[15px] font-bold text-ink" />
               </div>
               <Select value={type || "any"} onValueChange={(v) => setType(v === "any" ? "" : (v as PropertyType))}>
                 <SelectTrigger id="hero-type" aria-label="Property type" className="h-auto! min-w-0 flex-[1_1_140px] rounded-xl border-0 bg-surface px-3.5 py-2 text-left shadow-none hover:bg-[#f1ebec] data-[state=open]:bg-[#f1ebec]">
