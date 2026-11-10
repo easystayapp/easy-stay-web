@@ -30,7 +30,8 @@ const target = args.get("target") ?? "production";
 const dryRun = args.has("dry-run");
 const env = process.env;
 
-// Serverless hosts have no key file: send the two fields from it instead.
+// Serverless hosts have no key file: send it as FIREBASE_SERVICE_ACCOUNT (base64 JSON).
+let serviceAccount = env.FIREBASE_SERVICE_ACCOUNT;
 let clientEmail = env.FIREBASE_CLIENT_EMAIL;
 let privateKey = env.FIREBASE_PRIVATE_KEY;
 const keyFile = env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -38,6 +39,11 @@ if ((!clientEmail || !privateKey) && keyFile && existsSync(keyFile)) {
   const json = JSON.parse(readFileSync(keyFile, "utf8")) as { client_email?: string; private_key?: string };
   clientEmail = json.client_email;
   privateKey = json.private_key;
+}
+if (!serviceAccount && clientEmail && privateKey && env.FIREBASE_PROJECT_ID) {
+  serviceAccount = Buffer.from(
+    JSON.stringify({ type: "service_account", project_id: env.FIREBASE_PROJECT_ID, client_email: clientEmail, private_key: privateKey.replace(/\\n/g, "\n") }),
+  ).toString("base64");
 }
 
 type Var = [name: string, value: string | undefined, secret: boolean];
@@ -50,8 +56,8 @@ const required: Var[] = [
   ["NEXT_PUBLIC_FIREBASE_APP_ID", env.NEXT_PUBLIC_FIREBASE_APP_ID, false],
   ["DATA_BACKEND", "firestore", false],
   ["FIREBASE_PROJECT_ID", env.FIREBASE_PROJECT_ID, false],
-  ["FIREBASE_CLIENT_EMAIL", clientEmail, false],
-  ["FIREBASE_PRIVATE_KEY", privateKey, true],
+  // One base64 line: immune to quote / line-break mangling when stored on the host.
+  ["FIREBASE_SERVICE_ACCOUNT", serviceAccount, true],
 ];
 
 // Media: all-or-nothing. Without R2, uploads (photos, KYC) don't work in production.

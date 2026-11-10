@@ -14,6 +14,7 @@
     "check:firebase": "tsx scripts/check-firebase.ts",
     "deploy:firestore": "tsx scripts/deploy-firestore.ts",
     "vercel:env": "tsx scripts/vercel-env.ts",
+    "env:service-account": "tsx scripts/env-from-service-account.ts",
     "seed:content": "tsx scripts/seed-content.ts",
     "admin:create": "tsx scripts/make-admin.ts"
   },
