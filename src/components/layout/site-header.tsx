@@ -118,9 +118,6 @@ export function SiteHeader() {
               My listings
             </Link>
           )}
-          <Link href="/saved" className={navLink(pathname === "/saved")}>
-            Saved
-          </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           {ownerOn && (

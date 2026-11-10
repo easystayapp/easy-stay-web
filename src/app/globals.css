@@ -142,3 +142,77 @@
     @apply text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase;
   }
 }
+
+/* ------------------------------------------------------------ motion */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Route change: a quick fade (opacity only, so sticky/fixed children keep working). */
+@keyframes es-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-enter {
+  animation: es-page-in 280ms ease-out both;
+}
+
+/* Scroll reveal (set by <Reveal>): content below the fold fades and rises into place. */
+[data-reveal] {
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* FAQ accordions open and close smoothly where the browser supports it (Chrome/Edge/Safari TP). */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition: block-size 260ms ease, content-visibility 260ms allow-discrete;
+  }
+  details[open]::details-content {
+    block-size: auto;
+  }
+}
+
+/* Gentle lift on interactive cards. */
+.lift {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 150ms ease;
+}
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .page-enter {
+    animation: none;
+  }
+  [data-reveal] {
+    transition: none;
+  }
+  [data-reveal="hidden"] {
+    opacity: 1;
+    transform: none;
+  }
+  details::details-content {
+    transition: none;
+  }
+  .lift:hover {
+    transform: none;
+  }
+}

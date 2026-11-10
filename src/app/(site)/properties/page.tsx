@@ -63,14 +63,16 @@ function ResultsView() {
   return (
     <div className="container-page grid gap-8 py-6 md:py-8 lg:grid-cols-[280px_1fr]">
       {/* Web sidebar */}
-      <aside className="hidden self-start rounded-[20px] border border-line p-5 lg:sticky lg:top-24 lg:block">
-        <div className="mb-5 flex items-center justify-between">
+      <aside className="hidden self-start rounded-[20px] border border-line lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 pt-5 pb-3">
           <span className="text-lg font-extrabold">Filters</span>
           <button type="button" className="text-sm font-bold text-brand hover:text-brand-dark" onClick={() => apply(resetFilters(filters))}>
             Reset
           </button>
         </div>
-        <FiltersPanel filters={filters} onChange={apply} variant="list" />
+        <div className="px-5 pt-4 pb-5">
+          <FiltersPanel filters={filters} onChange={apply} variant="list" />
+        </div>
       </aside>
 
       <section className="flex min-w-0 flex-col gap-5">

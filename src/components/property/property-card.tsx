@@ -70,7 +70,7 @@ export function PropertyCard({ p, imageHeight = "h-[180px]" }: { p: Card; imageH
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
       }}
-      className="group flex flex-col overflow-hidden rounded-[20px] border border-line bg-white text-ink shadow-[var(--shadow-card)] transition-shadow hover:text-ink hover:shadow-[var(--shadow-pop)]"
+      className="lift group flex flex-col overflow-hidden rounded-[20px] border border-line bg-white text-ink shadow-[var(--shadow-card)] transition-shadow hover:text-ink hover:shadow-[var(--shadow-pop)]"
     >
       <div className={cx("relative", imageHeight)}>
         <PhotoSlider photos={p.photos} alt={p.title} seed={p.id} className="size-full" playing={hovered || focused} />

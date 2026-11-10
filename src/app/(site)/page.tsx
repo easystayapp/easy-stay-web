@@ -13,6 +13,7 @@ import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/page-spinner";
+import { Reveal } from "@/components/ui/reveal";
 import { api } from "@/lib/client/api";
 import { cx } from "@/lib/client/cx";
 import { welcomeSeen } from "@/lib/client/prefs";
@@ -239,7 +240,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="container-page pt-10 md:pt-12">
+      <Reveal className="container-page pt-10 md:pt-12">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Available near {city}</h2>
           <Link href={href({})} className="text-sm font-bold">
@@ -259,10 +260,10 @@ export default function HomePage() {
             ))}
           </div>
         )}
-      </section>
+      </Reveal>
 
       {topRated && topRated.length > 0 && (
-        <section className="container-page pt-12 md:pt-14">
+        <Reveal className="container-page pt-12 md:pt-14">
           <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="flex items-center gap-2 text-[22px] font-extrabold tracking-tight md:text-[26px]">
               <Star aria-hidden className="size-6 fill-current text-brand" />
@@ -277,10 +278,10 @@ export default function HomePage() {
               <PropertyCard key={p.id} p={p} imageHeight="h-[200px]" />
             ))}
           </div>
-        </section>
+        </Reveal>
       )}
 
-      <section className="container-page pt-12 md:pt-14">
+      <Reveal className="container-page pt-12 md:pt-14">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">Browse by type</h2>
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
           {home.categories.map((c) => {
@@ -299,10 +300,10 @@ export default function HomePage() {
             );
           })}
         </div>
-      </section>
+      </Reveal>
 
       {cities.length > 1 && (
-        <section className="container-page pt-14 md:pt-16">
+        <Reveal className="container-page pt-14 md:pt-16">
           <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Explore cities</h2>
             <span className="text-sm text-muted-foreground">Stays near the main job hubs</span>
@@ -336,11 +337,11 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-        </section>
+        </Reveal>
       )}
 
       {home.highlights.length > 0 && (
-        <section aria-label="Why EasyStay" className="container-page pt-14 md:pt-16">
+        <Reveal aria-label="Why EasyStay" className="container-page pt-14 md:pt-16">
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {home.highlights.map((h) => {
               const Icon = HIGHLIGHT_ICON[h.icon] ?? ShieldCheck;
@@ -357,10 +358,10 @@ export default function HomePage() {
               );
             })}
           </ul>
-        </section>
+        </Reveal>
       )}
 
-      <section className="container-page pt-14 md:pt-16">
+      <Reveal className="container-page pt-14 md:pt-16">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">How EasyStay works</h2>
         <ol className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
           {home.steps.map((step, i) => (
@@ -371,10 +372,10 @@ export default function HomePage() {
             </li>
           ))}
         </ol>
-      </section>
+      </Reveal>
 
       {home.faqs.length > 0 && (
-        <section className="container-page pt-14 md:pt-16">
+        <Reveal className="container-page pt-14 md:pt-16">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-16">
             <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
               <span className="mb-1 flex size-10 items-center justify-center rounded-xl bg-blush text-brand">
@@ -409,10 +410,10 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-        </section>
+        </Reveal>
       )}
 
-      <section className="container-page py-14 md:py-16">
+      <Reveal className="container-page py-14 md:py-16">
         <div className="flex flex-wrap items-center justify-between gap-6 rounded-[28px] bg-ink p-8 text-white md:p-10">
           <div className="flex flex-[1_1_420px] flex-col gap-2">
             <span className="text-[26px] font-extrabold tracking-tight md:text-[28px]">Own a PG, room or flat?</span>
@@ -424,7 +425,7 @@ export default function HomePage() {
             List your property
           </ButtonLink>
         </div>
-      </section>
+      </Reveal>
     </>
   );
 }
