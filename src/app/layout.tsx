@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers/providers";
 import type { Catalog } from "@/lib/domain/content";
 import { getRepositories } from "@/lib/server/repositories";
 import { getCatalog } from "@/lib/server/services/content";
+import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/seo";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -15,10 +16,22 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "EasyStay — Find your stay. Connect directly.", template: "%s · EasyStay" },
-  description:
-    "Find PGs, hostels, rooms and flats. Browse without signing up, then call or WhatsApp the owner directly — no brokers.",
-  icons: { icon: "/brand/logo-mark.png" },
+  metadataBase: new URL(siteUrl()),
+  title: { default: `${SITE_NAME} — ${SITE_TAGLINE}`, template: `%s · ${SITE_NAME}` },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  alternates: { canonical: "/" },
+  icons: { icon: "/brand/logo-mark.png", apple: "/brand/logo-mark.png" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_IN",
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+    images: [{ url: "/brand/logo-full.png", alt: SITE_NAME }],
+  },
+  twitter: { card: "summary_large_image", title: `${SITE_NAME} — ${SITE_TAGLINE}`, description: DEFAULT_DESCRIPTION, images: ["/brand/logo-full.png"] },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
 };
 
 export const viewport: Viewport = {
@@ -42,7 +55,7 @@ async function loadCatalog(): Promise<Catalog> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const catalog = await loadCatalog();
   return (
-    <html lang="en" className={`${jakarta.variable} font-sans`}>
+    <html lang="en-IN" className={`${jakarta.variable} font-sans`}>
       <body>
         <Providers catalog={catalog}>{children}</Providers>
       </body>

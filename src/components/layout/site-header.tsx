@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Plus, Search } from "lucide-react";
+import { Bell, Heart, Plus, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -129,6 +129,18 @@ export function SiteHeader() {
               <Bell aria-hidden className="size-5" />
             </Link>
           )}
+          <Link
+            href="/saved"
+            aria-label="Saved properties"
+            aria-current={pathname === "/saved" ? "page" : undefined}
+            className={cx(
+              "hidden h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold transition-colors hover:text-brand sm:flex md:px-4",
+              pathname === "/saved" ? "bg-blush text-brand" : "text-ink hover:bg-surface",
+            )}
+          >
+            <Heart aria-hidden className={cx("size-[18px]", pathname === "/saved" && "fill-current")} />
+            <span className="max-md:sr-only">Saved</span>
+          </Link>
           {!ready ? (
             <span className="h-11 w-24" />
           ) : user ? (

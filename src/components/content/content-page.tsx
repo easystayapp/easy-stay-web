@@ -24,7 +24,11 @@ function rich(text: string): ReactNode {
 
 export async function contentMetadata(slug: string): Promise<Metadata> {
   const page = await load(slug);
-  return { title: page?.title ?? "EasyStay" };
+  return {
+    title: page?.title ?? "EasyStay",
+    description: page?.intro ?? undefined,
+    alternates: { canonical: `/${slug}` },
+  };
 }
 
 /** A help/about/terms/privacy page whose text lives in the database (`pages/{slug}`). */
