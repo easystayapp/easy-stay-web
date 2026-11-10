@@ -4,7 +4,6 @@
  * database never touches auth, and swapping the auth provider only touches
  * this file.
  */
-import { getAuth } from "firebase-admin/auth";
 import { DomainError } from "@/lib/domain/errors";
 import { getAdminApp } from "./firebase-admin";
 
@@ -23,6 +22,8 @@ export interface AuthUser {
 export async function verifyBearer(header: string | null): Promise<AuthUser | null> {
   const token = header?.match(/^Bearer (.+)$/i)?.[1];
   if (!token) return null;
+  // Loaded only when a request carries a token, so public routes never depend on the Auth module.
+  const { getAuth } = await import("firebase-admin/auth");
   try {
     const t = await getAuth(getAdminApp()).verifyIdToken(token);
     return {
