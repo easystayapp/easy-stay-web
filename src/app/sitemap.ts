@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
 
-/** Home, browse page, info pages and every live listing. */
+/** Home, browse page, info pages and every live listing (with its photos). Refreshed hourly. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [
@@ -19,7 +19,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const t = now.getTime();
     for (const p of live) {
       if (p.status !== "active" || (p.expiresAt && p.expiresAt.getTime() < t)) continue;
-      entries.push({ url: absoluteUrl(`/properties/${p.id}`), lastModified: p.updatedAt, changeFrequency: "weekly", priority: 0.7 });
+      entries.push({
+        url: absoluteUrl(`/properties/${p.id}`),
+        lastModified: p.updatedAt,
+        changeFrequency: "weekly",
+        priority: 0.7,
+        // Listing photos, so they can appear in image search (absolute URLs only).
+        images: p.photos.slice(0, 5).map((ph) => (ph.url.startsWith("http") ? ph.url : absoluteUrl(ph.url))),
+      });
     }
   } catch (err) {
     console.error("[sitemap] could not load listings", err); // still serve the static entries
