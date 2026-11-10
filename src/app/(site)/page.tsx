@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, Building2, House, MapPin, Search, SlidersHorizontal, Users, Utensils, Venus } from "lucide-react";
+import { BedDouble, Building2, House, MapPin, Search, SlidersHorizontal, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,16 +11,31 @@ import { LocalityCombobox } from "@/components/search/locality-combobox";
 import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/page-spinner";
 import { api } from "@/lib/client/api";
+import { cx } from "@/lib/client/cx";
 import { welcomeSeen } from "@/lib/client/prefs";
 import { useCatalog } from "@/hooks/use-catalog";
 import { popularLocalities, type CategoryIcon } from "@/lib/domain/content";
 import type { FeaturedStay, PropertyCard as Card } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
+
+/* Hero search bar: one bar of icon-led segments (stacked boxes on phones). */
+const SEGMENT =
+  "flex min-h-14 min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors max-md:bg-surface md:hover:bg-surface md:focus-within:bg-surface";
+const SELECT_SEGMENT = "h-auto! border-0 shadow-none focus-visible:ring-2 focus-visible:ring-brand/30 data-[state=open]:bg-surface";
+const SEGMENT_LABEL = "text-[11px] leading-4 font-bold tracking-[0.06em] text-muted-foreground uppercase";
+const DIVIDER = "my-3 hidden w-px shrink-0 bg-line md:block";
+
+function SegmentIcon({ icon: Icon }: { icon: typeof MapPin }) {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blush text-brand">
+      <Icon aria-hidden className="size-[18px]" />
+    </span>
+  );
+}
 
 /** Category icons are code; which categories exist (and their filters) comes from the database. */
 const CATEGORY_ICON: Record<CategoryIcon, typeof House> = {
@@ -73,7 +88,7 @@ export default function HomePage() {
               <SelectTrigger
                 size="sm"
                 aria-label="Your city"
-                className="h-9! self-start rounded-full border-0 bg-white pr-3 pl-3 text-[13px] font-bold text-brand-dark"
+                className="h-9! gap-1.5 self-start rounded-full! border-0 bg-white pr-3 pl-3 text-[13px] font-extrabold text-brand-dark shadow-[0_1px_3px_rgba(30,27,31,0.08)] ring-1 ring-black/[0.04] transition-colors hover:bg-blush focus-visible:ring-2 focus-visible:ring-brand/30 data-[state=open]:bg-blush"
               >
                 <MapPin aria-hidden className="size-4 text-brand" />
                 <SelectValue />
@@ -102,33 +117,56 @@ export default function HomePage() {
                 const b = home.budgets[budget];
                 router.push(href({ q: q.trim(), types: type ? [type] : [], minRent: b?.minRent ?? null, maxRent: b?.maxRent ?? null }));
               }}
-              className="flex flex-wrap gap-2.5 rounded-[20px] bg-white p-2.5 shadow-[var(--shadow-pop)]"
+              className="flex flex-wrap items-stretch gap-1.5 rounded-[22px] border border-white bg-white p-2 shadow-[var(--shadow-pop)] md:flex-nowrap"
             >
-              <div className="flex min-w-0 flex-[2_1_220px] flex-col gap-1 rounded-xl bg-surface px-3.5 py-2">
-                <Label htmlFor="hero-q" className="text-[11px] text-muted-foreground">Location</Label>
-                <LocalityCombobox id="hero-q" city={city} value={q} onChange={setQ} inputClassName="text-[15px] font-bold text-ink" />
+              <div
+                className={cx(SEGMENT, "relative flex-[2_1_240px] cursor-text")}
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest("[role=listbox]")) document.getElementById("hero-q")?.focus();
+                }}
+              >
+                <SegmentIcon icon={MapPin} />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <label htmlFor="hero-q" className={cx(SEGMENT_LABEL, "cursor-text")}>
+                    Location
+                  </label>
+                  <LocalityCombobox
+                    id="hero-q"
+                    city={city}
+                    value={q}
+                    onChange={setQ}
+                    placeholder={`Area in ${city}`}
+                    className="static"
+                    inputClassName="h-6 text-[15px] leading-6 font-bold text-ink placeholder:font-semibold placeholder:text-muted-foreground/80"
+                    listClassName="top-[calc(100%+12px)] left-0 w-full"
+                  />
+                </span>
               </div>
+              <span aria-hidden className={DIVIDER} />
               <Select value={type || "any"} onValueChange={(v) => setType(v === "any" ? "" : (v as PropertyType))}>
-                <SelectTrigger id="hero-type" aria-label="Property type" className="h-auto! min-w-0 flex-[1_1_140px] rounded-xl border-0 bg-surface px-3.5 py-2 text-left shadow-none hover:bg-[#f1ebec] data-[state=open]:bg-[#f1ebec]">
-                  <span className="flex min-w-0 flex-col items-start gap-0.5">
-                    <span className="text-[11px] font-bold text-muted-foreground">Type</span>
-                    <span className="text-[15px] font-bold text-ink">
+                <SelectTrigger id="hero-type" aria-label="Property type" className={cx(SEGMENT, SELECT_SEGMENT, "flex-[1_1_160px]")}>
+                  <SegmentIcon icon={Building2} />
+                  <span className="flex min-w-0 flex-1 flex-col items-start">
+                    <span className={SEGMENT_LABEL}>Type</span>
+                    <span className="truncate text-[15px] leading-6 font-bold text-ink">
                       <SelectValue />
                     </span>
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="any">Any type</SelectItem>
                   <SelectItem value="pg">PG / Hostel</SelectItem>
                   <SelectItem value="room">Room</SelectItem>
                   <SelectItem value="flat">Flat</SelectItem>
                 </SelectContent>
               </Select>
+              <span aria-hidden className={DIVIDER} />
               <Select value={String(budget)} onValueChange={(v) => setBudget(Number(v))}>
-                <SelectTrigger id="hero-budget" aria-label="Budget" className="h-auto! min-w-0 flex-[1_1_140px] rounded-xl border-0 bg-surface px-3.5 py-2 text-left shadow-none hover:bg-[#f1ebec] data-[state=open]:bg-[#f1ebec]">
-                  <span className="flex min-w-0 flex-col items-start gap-0.5">
-                    <span className="text-[11px] font-bold text-muted-foreground">Budget</span>
-                    <span className="text-[15px] font-bold text-ink">
+                <SelectTrigger id="hero-budget" aria-label="Budget" className={cx(SEGMENT, SELECT_SEGMENT, "flex-[1_1_170px]")}>
+                  <SegmentIcon icon={Wallet} />
+                  <span className="flex min-w-0 flex-1 flex-col items-start">
+                    <span className={SEGMENT_LABEL}>Budget</span>
+                    <span className="truncate text-[15px] leading-6 font-bold text-ink">
                       <SelectValue />
                     </span>
                   </span>
@@ -143,16 +181,23 @@ export default function HomePage() {
               </Select>
               <button
                 type="submit"
-                className="flex min-h-[52px] flex-[1_1_120px] items-center justify-center gap-2 rounded-xl bg-brand text-[15px] font-extrabold text-white hover:bg-brand-dark"
+                className="flex min-h-14 flex-[1_1_100%] items-center justify-center gap-2 rounded-2xl bg-brand px-6 text-[15px] font-extrabold text-white shadow-[0_8px_18px_rgba(214,40,67,0.28)] transition-[background-color,transform] hover:bg-brand-dark active:scale-[0.98] md:flex-none"
               >
                 <Search aria-hidden className="size-[18px]" strokeWidth={2.4} />
                 Search
               </button>
             </form>
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
-              <span className="font-bold text-muted-foreground">Popular:</span>
+              <span className="mr-1 flex items-center gap-1.5 font-bold text-muted-2">
+                <TrendingUp aria-hidden className="size-4 text-brand" />
+                Popular in {city}
+              </span>
               {popularLocalities(cities, city).map((l) => (
-                <Link key={l} href={href({ q: l })} className="rounded-full bg-white px-3 py-2 font-semibold text-ink hover:text-brand">
+                <Link
+                  key={l}
+                  href={href({ q: l })}
+                  className="rounded-full border border-white bg-white/80 px-3.5 py-2 font-semibold text-ink transition-colors hover:border-blush-line hover:bg-white hover:text-brand-dark"
+                >
                   {l}
                 </Link>
               ))}
