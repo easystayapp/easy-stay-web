@@ -89,7 +89,7 @@ The `.env.local` template walks through every value. To go back to the emulators
 
 ## Deploying to Vercel
 
-Server functions run in **Mumbai (`bom1`, see `vercel.json`)**, next to the Firestore database in `asia-south1`. Vercel has no key file, so the server reads `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY` instead of `GOOGLE_APPLICATION_CREDENTIALS` (don't set that one on Vercel).
+Server functions run in **Mumbai (`bom1`, see `vercel.json`)**, next to the Firestore database in `asia-south1`, on **Node 22** (`engines` in `package.json`). Node 22.12+ is required: `firebase-admin` → `jwks-rsa` loads the ESM-only `jose` with `require()`. Vercel has no key file, so the server reads `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY` instead of `GOOGLE_APPLICATION_CREDENTIALS` (don't set that one on Vercel).
 
 1. `npx vercel login` (as the Vercel account owner: Hobby blocks deploys by other commit authors), then `npx vercel link`.
 2. `npm run vercel:env -- --dry-run`, then `npm run vercel:env -- --site-url=https://your-domain` copies the settings from `.env.local` and `service-account.json` without printing secrets. R2 is skipped with a warning if it isn't configured.
