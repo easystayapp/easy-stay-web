@@ -1,5 +1,4 @@
 /** Seeker-side engagement: contacting owners, rating, saving. */
-import { defaultGreeting } from "@/lib/domain/catalog";
 import type {
   ContactInfo,
   MyRatingListItem,
@@ -15,6 +14,7 @@ import { combinedScore, summarize, validateScores } from "@/lib/domain/rating";
 import { CONTACT_CHANNELS, RATING_RELATIONS, type ContactChannel, type Property } from "@/lib/domain/types";
 import type { AuthUser } from "../auth";
 import type { Repositories } from "../repositories";
+import { greeting } from "./content";
 import { contactChannelsFor, factorAverages, toCard, toRatingItem } from "./mappers";
 import { getUser } from "./users";
 
@@ -48,7 +48,7 @@ export async function contactOwner(
   }
   const phone = owner?.owner?.contactPhone ?? p.contact.phone;
   const whatsapp = p.contact.whatsapp ?? owner?.owner?.whatsappPhone ?? phone;
-  const message = owner?.owner?.greeting ?? defaultGreeting(p.type);
+  const message = owner?.owner?.greeting ?? (await greeting(repos, p.type));
 
   if (auth.uid !== p.ownerId) {
     await repos.contacts.record({

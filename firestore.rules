@@ -50,6 +50,13 @@ service cloud.firestore {
       allow delete: if false; // ratings stay with the property
     }
 
+    // ── Reference data & content (cities, app config, home/welcome content, pages) ──
+    // Public to read; written only by the server / seed script (Admin SDK).
+    match /cities/{cityId}   { allow read: if true; allow write: if false; }
+    match /config/{docId}    { allow read: if true; allow write: if false; }
+    match /content/{docId}   { allow read: if true; allow write: if false; }
+    match /pages/{slug}      { allow read: if true; allow write: if false; }
+
     // ── User profiles: saved, contacted, owner settings, FCM tokens ──
     match /users/{uid} {
       allow read, write: if isUser(uid);

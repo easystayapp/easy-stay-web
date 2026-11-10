@@ -17,6 +17,7 @@
  *   users: createdAt, updatedAt, savedAt{propertyId: ms}, ownerSettingsOff (owner tools turned off)
  *   users.ownerSettings: greeting, newRating, enabledAt
  */
+import type { City } from "@/lib/domain/content";
 import { emptySummary } from "@/lib/domain/rating";
 import { formatPhone, normalizeIndianMobile } from "@/lib/domain/format";
 import type {
@@ -90,22 +91,25 @@ export const FACTOR = upper<RatingFactor>(["property", "owner", "environment", "
 
 /* ------------------------------------------------------------ cities */
 
-/** Web catalog name ↔ Android catalog name (assets/cities.json), with the state Android stores. */
-const CITY_TABLE: { web: string; stored: string; state: string }[] = [
-  { web: "Hyderabad", stored: "Hyderabad", state: "Telangana" },
-  { web: "Bengaluru", stored: "Bengaluru", state: "Karnataka" },
-  { web: "Pune", stored: "Pune", state: "Maharashtra" },
-  { web: "Chennai", stored: "Chennai", state: "Tamil Nadu" },
-  { web: "Mumbai", stored: "Mumbai Metropolitan Region (MMR)", state: "Maharashtra" },
-  { web: "Delhi NCR", stored: "Delhi-NCR (Gurugram & Noida)", state: "Haryana & Uttar Pradesh" },
-];
-export function cityIn(stored: unknown): string {
-  const s = typeof stored === "string" ? stored : "";
-  return CITY_TABLE.find((c) => c.stored === s)?.web ?? s;
+/**
+ * Listings store the city's canonical `name` (Android's catalog name); the web
+ * works with the short `label`. Both come from the `cities` collection.
+ */
+export interface CityIndex {
+  byName: Map<string, City>;
+  byLabel: Map<string, City>;
 }
-export function cityOut(web: string): { city: string; state: string } {
-  const row = CITY_TABLE.find((c) => c.web === web);
-  return { city: row?.stored ?? web, state: row?.state ?? "" };
+export const cityIndex = (cities: City[]): CityIndex => ({
+  byName: new Map(cities.map((c) => [c.name, c])),
+  byLabel: new Map(cities.map((c) => [c.label, c])),
+});
+export function cityIn(stored: unknown, idx: CityIndex): string {
+  const s = typeof stored === "string" ? stored : "";
+  return idx.byName.get(s)?.label ?? s;
+}
+export function cityOut(label: string, idx: CityIndex): { city: string; state: string } {
+  const c = idx.byLabel.get(label) ?? idx.byName.get(label);
+  return { city: c?.name ?? label, state: c?.state ?? "" };
 }
 
 /* ------------------------------------------------------------ primitives */
@@ -158,7 +162,7 @@ const photosIn = (v: unknown): Photo[] => strings(v).filter(Boolean).map((url) =
 /** Location text the web shows as "address": Android's house number + landmark. */
 const addressIn = (d: Doc) => [str(d.houseNumber), str(d.landmark)].filter((s) => s.trim()).join(", ");
 
-export function propertyIn(id: string, d: Doc, contact: Doc | null): Property | null {
+export function propertyIn(id: string, d: Doc, contact: Doc | null, cities: CityIndex): Property | null {
   const type = TYPE.in(d.type);
   if (!type) return null; // Android skips unknown types too
   const lat = num(d.latitude);
@@ -175,7 +179,7 @@ export function propertyIn(id: string, d: Doc, contact: Doc | null): Property | 
     rent: num(d.rent) ?? 0,
     deposit: num(d.deposit),
     location: {
-      city: cityIn(d.city),
+      city: cityIn(d.city, cities),
       locality: str(d.locality),
       address: addressIn(d),
       geo: lat != null && lng != null ? { lat, lng } : null,
@@ -207,8 +211,8 @@ export function propertyIn(id: string, d: Doc, contact: Doc | null): Property | 
  * fields that differ from the current document, so Android-only details
  * (pin code, separate landmark, view counters) survive web edits.
  */
-export function propertyOut(p: Omit<Property, "id">): Doc {
-  const { city, state } = cityOut(p.location.city);
+export function propertyOut(p: Omit<Property, "id">, cities: CityIndex): Doc {
+  const { city, state } = cityOut(p.location.city, cities);
   return {
     ownerId: p.ownerId,
     name: p.title,

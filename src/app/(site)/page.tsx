@@ -16,30 +16,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageSpinner } from "@/components/ui/page-spinner";
 import { api } from "@/lib/client/api";
 import { welcomeSeen } from "@/lib/client/prefs";
-import { CITIES, popularLocalities } from "@/lib/domain/catalog";
+import { useCatalog } from "@/hooks/use-catalog";
+import { popularLocalities, type CategoryIcon } from "@/lib/domain/content";
 import type { FeaturedStay, PropertyCard as Card } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
 
-const BUDGETS = [
-  { label: "Any budget", min: null, max: null },
-  { label: "Under ₹5k", min: null, max: 5000 },
-  { label: "₹5k – ₹10k", min: 5000, max: 10000 },
-  { label: "₹10k – ₹20k", min: 10000, max: 20000 },
-  { label: "₹20k+", min: 20000, max: null },
-];
-
-const CATEGORIES: { name: string; hint: string; icon: typeof House; f: Partial<SearchFilters> }[] = [
-  { name: "PG / Hostel", hint: "1–6 sharing, meals", icon: Building2, f: { types: ["pg"] } },
-  { name: "Room", hint: "Single room · 1 RK", icon: BedDouble, f: { types: ["room"] } },
-  { name: "Flat", hint: "1–4 BHK", icon: House, f: { types: ["flat"] } },
-  { name: "Girls PG", hint: "Female only", icon: Venus, f: { types: ["pg"], genders: ["female"] } },
-  { name: "Co-living", hint: "Open to anyone", icon: Users, f: { genders: ["anyone"] } },
-  { name: "With food", hint: "Meals included", icon: Utensils, f: { food: "yes" } },
-];
+/** Category icons are code; which categories exist (and their filters) comes from the database. */
+const CATEGORY_ICON: Record<CategoryIcon, typeof House> = {
+  pg: Building2,
+  room: BedDouble,
+  flat: House,
+  female: Venus,
+  coliving: Users,
+  food: Utensils,
+};
 
 export default function HomePage() {
   const router = useRouter();
+  const { cities, home } = useCatalog();
   const { city, setCity } = useCity();
   const { me } = useAuth();
   const [items, setItems] = useState<Card[] | null>(null);
@@ -84,9 +79,9 @@ export default function HomePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
-                {CITIES.map((c) => (
-                  <SelectItem key={c.name} value={c.name}>
-                    {c.name}
+                {cities.map((c) => (
+                  <SelectItem key={c.id} value={c.label}>
+                    {c.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -104,8 +99,8 @@ export default function HomePage() {
               role="search"
               onSubmit={(e) => {
                 e.preventDefault();
-                const b = BUDGETS[budget];
-                router.push(href({ q: q.trim(), types: type ? [type] : [], minRent: b.min, maxRent: b.max }));
+                const b = home.budgets[budget];
+                router.push(href({ q: q.trim(), types: type ? [type] : [], minRent: b?.minRent ?? null, maxRent: b?.maxRent ?? null }));
               }}
               className="flex flex-wrap gap-2.5 rounded-[20px] bg-white p-2.5 shadow-[var(--shadow-pop)]"
             >
@@ -145,7 +140,7 @@ export default function HomePage() {
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {BUDGETS.map((b, i) => (
+                  {home.budgets.map((b, i) => (
                     <SelectItem key={b.label} value={String(i)}>
                       {b.label}
                     </SelectItem>
@@ -162,7 +157,7 @@ export default function HomePage() {
             </form>
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
               <span className="font-bold text-muted-foreground">Popular:</span>
-              {popularLocalities(city).map((l) => (
+              {popularLocalities(cities, city).map((l) => (
                 <Link key={l} href={href({ q: l })} className="rounded-full bg-white px-3 py-2 font-semibold text-ink hover:text-brand">
                   {l}
                 </Link>
@@ -194,17 +189,21 @@ export default function HomePage() {
       <section className="container-page pt-12 md:pt-14">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">Browse by type</h2>
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
-          {CATEGORIES.map((c) => (
-            <Link
-              key={c.name}
-              href={href(c.f)}
-              className="flex flex-col gap-1.5 rounded-[20px] border-[1.5px] border-line px-[18px] py-5 text-ink hover:border-blush-line hover:text-ink"
-            >
-              <c.icon aria-hidden className="mb-1 size-6 text-brand" />
-              <span className="text-[17px] font-extrabold">{c.name}</span>
-              <span className="text-[13px] text-muted-foreground">{c.hint}</span>
-            </Link>
-          ))}
+          {home.categories.map((c) => {
+            const Icon = CATEGORY_ICON[c.icon] ?? House;
+            const f: Partial<SearchFilters> = { types: c.types, genders: c.genders, food: c.food == null ? null : c.food ? "yes" : "no" };
+            return (
+              <Link
+                key={c.title}
+                href={href(f)}
+                className="flex flex-col gap-1.5 rounded-[20px] border-[1.5px] border-line px-[18px] py-5 text-ink hover:border-blush-line hover:text-ink"
+              >
+                <Icon aria-hidden className="mb-1 size-6 text-brand" />
+                <span className="text-[17px] font-extrabold">{c.title}</span>
+                <span className="text-[13px] text-muted-foreground">{c.hint}</span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -233,15 +232,11 @@ export default function HomePage() {
       <section className="container-page pt-14 md:pt-16">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">How EasyStay works</h2>
         <ol className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
-          {[
-            ["Browse freely", "Search, filter and open any listing without an account. Only available places are shown."],
-            ["Log in to connect", "One tap with Google — and you're right back on the property you picked."],
-            ["Call or WhatsApp", "Talk to the owner directly, arrange a visit, and rate the place afterwards."],
-          ].map(([t, b], i) => (
-            <li key={t} className="flex flex-col gap-2.5 rounded-[22px] bg-surface p-6">
+          {home.steps.map((step, i) => (
+            <li key={step.title} className="flex flex-col gap-2.5 rounded-[22px] bg-surface p-6">
               <span className="flex size-10 items-center justify-center rounded-xl bg-brand font-extrabold text-white">{i + 1}</span>
-              <span className="text-lg font-extrabold">{t}</span>
-              <span className="text-sm leading-relaxed text-muted-2">{b}</span>
+              <span className="text-lg font-extrabold">{step.title}</span>
+              <span className="text-sm leading-relaxed text-muted-2">{step.body}</span>
             </li>
           ))}
         </ol>

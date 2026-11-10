@@ -122,23 +122,4 @@ export const RATING_RELATION_LABEL: Record<RatingRelation, string> = {
   living: "Living here",
 };
 
-/** Cities the app serves, with their popular localities. */
-export const CITIES: { name: string; popular: string[] }[] = [
-  { name: "Hyderabad", popular: ["Madhapur", "Gachibowli", "Kondapur", "Kukatpally", "Hitech City"] },
-  { name: "Bengaluru", popular: ["Koramangala", "HSR Layout", "Whitefield", "Marathahalli", "BTM Layout"] },
-  { name: "Pune", popular: ["Hinjewadi", "Kharadi", "Viman Nagar", "Baner", "Wakad"] },
-  { name: "Chennai", popular: ["OMR", "Velachery", "T. Nagar", "Guindy", "Porur"] },
-  { name: "Mumbai", popular: ["Andheri", "Powai", "Bandra", "Thane", "Malad"] },
-  { name: "Delhi NCR", popular: ["Gurugram", "Noida", "Laxmi Nagar", "Saket", "Dwarka"] },
-];
-
-export const DEFAULT_CITY = "Hyderabad";
-
-export function popularLocalities(city: string): string[] {
-  return CITIES.find((c) => c.name === city)?.popular ?? [];
-}
-
-export function defaultGreeting(type: PropertyType): string {
-  const noun = type === "pg" ? "PG" : type === "room" ? "room" : "flat";
-  return `Hi, I found your property on EasyStay.\nI am interested in this ${noun}.\nIs it currently available?`;
-}
+// Cities, localities, home content, greetings and pages live in the database (see ./content.ts).

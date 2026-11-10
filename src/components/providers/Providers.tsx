@@ -3,26 +3,30 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { storeCity, storedCity } from "@/lib/client/prefs";
-import { DEFAULT_CITY } from "@/lib/domain/catalog";
+import type { Catalog } from "@/lib/domain/content";
+import { useCatalog } from "@/hooks/use-catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { AuthProvider } from "./auth-provider";
+import { CatalogProvider } from "./catalog-provider";
 import { ToastProvider } from "./toast-provider";
 
 /* ----------------------------------------------------------------- city */
 
 export const CityContext = createContext<{ city: string; setCity: (c: string) => void }>({
-  city: DEFAULT_CITY,
+  city: "",
   setCity: () => {},
 });
 
 function CityProvider({ children }: { children: React.ReactNode }) {
-  const [city, setCityState] = useState(DEFAULT_CITY);
+  const { cities, defaultCity } = useCatalog();
+  const [city, setCityState] = useState(defaultCity);
   useEffect(() => {
     const stored = storedCity();
+    // Ignore a remembered city that is no longer offered.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after mount
-    if (stored) setCityState(stored);
-  }, []);
+    if (stored && cities.some((c) => c.label === stored)) setCityState(stored);
+  }, [cities]);
   const setCity = useCallback((c: string) => {
     setCityState(c);
     storeCity(c);
@@ -96,14 +100,16 @@ function SavedProvider({ children }: { children: React.ReactNode }) {
   return <SavedContext.Provider value={value}>{children}</SavedContext.Provider>;
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ catalog, children }: { catalog: Catalog; children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <CityProvider>
-          <SavedProvider>{children}</SavedProvider>
-        </CityProvider>
-      </AuthProvider>
-    </ToastProvider>
+    <CatalogProvider value={catalog}>
+      <ToastProvider>
+        <AuthProvider>
+          <CityProvider>
+            <SavedProvider>{children}</SavedProvider>
+          </CityProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </CatalogProvider>
   );
 }

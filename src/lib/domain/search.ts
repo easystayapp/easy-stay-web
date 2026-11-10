@@ -3,7 +3,7 @@
  * adapter. Adapters may push some filters down to the database, but
  * `matchesFilters` is the reference behaviour and is always applied.
  */
-import { DEFAULT_CITY, MIN_RATINGS_TO_SHOW, PROPERTY_TYPE_LABEL, SHARING_BY_TYPE, SHARING_LABEL } from "./catalog";
+import { MIN_RATINGS_TO_SHOW, PROPERTY_TYPE_LABEL, SHARING_BY_TYPE, SHARING_LABEL } from "./catalog";
 import { factorAverage } from "./rating";
 import { isPubliclyVisible } from "./listing";
 import { addDays, parseDayKey, startOfDayIST } from "./time";
@@ -51,7 +51,7 @@ export interface SearchFilters {
   page: number;
 }
 
-export function emptyFilters(city = DEFAULT_CITY): SearchFilters {
+export function emptyFilters(city: string): SearchFilters {
   return {
     city,
     q: "",
@@ -86,7 +86,7 @@ const num = (v: string | null): number | null => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 };
 
-export function parseFilters(params: URLSearchParams, fallbackCity = DEFAULT_CITY): SearchFilters {
+export function parseFilters(params: URLSearchParams, fallbackCity: string): SearchFilters {
   const rating = params.get("rating");
   const food = params.get("food");
   const sort = params.get("sort") as SearchSort | null;

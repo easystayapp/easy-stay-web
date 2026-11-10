@@ -48,7 +48,8 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run lint` / `typecheck` | ESLint 9 (flat config) / `tsc --noEmit` |
-| `npm run seed` | Demo data through the repository layer (`--force` to add again) |
+| `npm run seed` | Demo listings through the repository layer (emulators only unless `--live`; `--force` to add again) |
+| `npm run seed:content` | Cities, home/welcome content, greetings and pages (creates missing; `--dry-run`, `--overwrite`) |
 | `npm run emulators` | Firebase Auth + Firestore emulators |
 | `npm run check:firebase` | Verifies the live Firebase setup: config, API key, sign-in providers, service account, Firestore read/write |
 | `npm run deploy:firestore` | Deploys `firestore.rules` and `firestore.indexes.json` to the project in `.env.local` |
@@ -156,6 +157,10 @@ The database is **shared with the EasyStay Android app** (`easystayapp/easy-stay
 | `properties/{id}/private/contact` | `contact` | `phone`, `whatsapp`, `ownerId` — signed-in users only |
 | `reviews` | `r_{propertyId}_{uid}` | `relation`, `scores{PROPERTY…FOOD}`, `text` — one per person |
 | `users` | auth uid | `name`, `email`, `phone`, `ownerSettings{…}` (present = owner tools on), `saved[]`, `contacted[]`, `fcmTokens[]` |
+| `cities` | slug (`mumbai`) | `name` (stored on listings, = Android catalog), `label` (web/URLs), `state`, `localities[]`, `popular[]`, `order`, `active` |
+| `config/app` | `app` | `defaultCityId`, `greetings{PG_HOSTEL, ROOM, FLAT}` (`{noun}` placeholder) |
+| `content/home`, `content/welcome` | — | home budgets, categories (Android enum codes), "How it works" steps; welcome cards per audience |
+| `pages` | slug (`help`, `about`, `terms`, `privacy`) | `title`, `intro`, `sections[{anchor, heading, paragraphs[], items[]}]` (`**bold**` supported) |
 | `listingDrafts` | auto | web-only: unpublished listings (Android has no drafts and would show them) |
 | `propertyViews` | `{propertyId}_{viewer}_{day}` | web-only: one counted view per person per day |
 
@@ -164,6 +169,7 @@ The database is **shared with the EasyStay Android app** (`easystayapp/easy-stay
 - **Ratings**: aggregates are computed from `reviews` on read, since both apps write them. Only users whose `contacted[]` includes the listing can rate.
 - **Contact numbers** live in `private/contact` and are only returned to a logged-in seeker, which adds the listing to their `contacted[]`.
 - **Photos**: uploaded to `properties/{ownerId}/…` in the shared R2 bucket (the Worker uses the same folder). The server checks each new key exists, is an image under 5 MB, and builds the public URL from the key.
+- **Content is data, not code.** Cities, localities, home sections, welcome cards, greetings and the help/about/terms/privacy pages are read from the collections above (cached ~1 minute; pages revalidate every minute). Edit them in the Firebase console. `npm run seed:content` creates any that are missing (`--dry-run`, `--overwrite`); its source is `src/lib/server/seed/content.ts`. Enum codes, labels and business rules (15-day listings, 3–5 photos, "New" until 3 ratings) stay in code: the Android app and its Worker hardcode the same values.
 - `npm run seed` only runs against the emulators unless you pass `--live`.
 
 ## Switching the database

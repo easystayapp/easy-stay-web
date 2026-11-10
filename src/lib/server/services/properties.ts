@@ -31,13 +31,14 @@ import {
   sortProperties,
   type SearchFilters,
 } from "@/lib/domain/search";
-import { popularLocalities, PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
+import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
 import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/time";
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
 import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
 import type { AuthUser } from "../auth";
 import type { Repositories } from "../repositories";
 import { deleteMedia, verifyPhotos } from "./media";
+import { popularIn } from "./content";
 import { factorAverages, toCard, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
 import { requireOwner } from "./users";
 
@@ -86,7 +87,7 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
     set.add(p.type);
     counts.set(p.location.locality, set);
   }
-  for (const l of popularLocalities(city)) if (matchesQ(l) && !counts.has(l)) counts.set(l, new Set());
+  for (const l of await popularIn(repos, city)) if (matchesQ(l) && !counts.has(l)) counts.set(l, new Set());
 
   const out: Suggestion[] = [];
   const localities = [...counts.keys()].slice(0, 3);

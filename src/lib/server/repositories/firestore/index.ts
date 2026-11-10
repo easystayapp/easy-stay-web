@@ -9,8 +9,10 @@ import type { SearchFilters } from "@/lib/domain/search";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
 import { getAdminApp } from "../../firebase-admin";
 import type { NewProperty, PropertyPatch, Repositories, UserPatch } from "../types";
+import { createFirestoreContent } from "./content";
 import {
   COLLECTIONS,
+  cityIndex,
   contactOut,
   contactedIds,
   ms,
@@ -26,6 +28,7 @@ import {
   tintFor,
   userIn,
   utcDayKey,
+  type CityIndex,
   type Doc,
 } from "./schema";
 
@@ -52,6 +55,18 @@ export function createFirestoreRepositories(): Repositories {
   const drafts = fs.collection(COLLECTIONS.drafts);
   const reviews = fs.collection(COLLECTIONS.reviews);
   const contactRef = (id: string) => props.doc(id).collection("private").doc("contact");
+  const content = createFirestoreContent(fs);
+
+  // City names on listings are translated through the `cities` collection (cached briefly).
+  let citiesCache: { at: number; idx: Promise<CityIndex> } | null = null;
+  const cities = () => {
+    if (!citiesCache || Date.now() - citiesCache.at > 60_000) {
+      const idx = content.listCities().then(cityIndex);
+      idx.catch(() => (citiesCache = null));
+      citiesCache = { at: Date.now(), idx };
+    }
+    return citiesCache.idx;
+  };
 
   async function getAll(refs: FirebaseFirestore.DocumentReference[]) {
     const out: DocumentSnapshot[] = [];
@@ -75,22 +90,24 @@ export function createFirestoreRepositories(): Repositories {
     return list.map((p) => ({ ...p, ratingSummary: summarize(byProperty.get(p.id) ?? []) }));
   }
 
-  const fromSnaps = (snaps: DocumentSnapshot[]) =>
-    snaps.filter((s) => s.exists).map((s) => propertyIn(s.id, s.data()!, null)).filter((p): p is Property => !!p);
+  const fromSnaps = async (snaps: DocumentSnapshot[]) => {
+    const idx = await cities();
+    return snaps.filter((s) => s.exists).map((s) => propertyIn(s.id, s.data()!, null, idx)).filter((p): p is Property => !!p);
+  };
 
   /** Full listing (with private contact), whether published or a web draft. */
   async function load(id: string): Promise<{ property: Property; draft: boolean } | null> {
-    const [snap, contact] = await Promise.all([props.doc(id).get(), contactRef(id).get()]);
+    const [snap, contact, idx] = await Promise.all([props.doc(id).get(), contactRef(id).get(), cities()]);
     if (snap.exists) {
-      const p = propertyIn(id, snap.data()!, contact.exists ? contact.data()! : null);
+      const p = propertyIn(id, snap.data()!, contact.exists ? contact.data()! : null, idx);
       return p ? { property: (await withRatings([p]))[0], draft: false } : null;
     }
     const d = await drafts.doc(id).get();
-    const p = d.exists ? propertyIn(id, d.data()!, null) : null;
+    const p = d.exists ? propertyIn(id, d.data()!, null, idx) : null;
     return p ? { property: p, draft: true } : null;
   }
 
-  const draftDoc = (p: Omit<Property, "id">) => ({ ...propertyOut(p), contact: contactOut(p) });
+  const draftDoc = (p: Omit<Property, "id">, idx: CityIndex) => ({ ...propertyOut(p, idx), contact: contactOut(p) });
 
   async function writeUser(id: string, patch: UserPatch) {
     const data: Doc = {};
@@ -109,6 +126,7 @@ export function createFirestoreRepositories(): Repositories {
   }
 
   return {
+    content,
     users: {
       async get(id) {
         const s = await users.doc(id).get();
@@ -144,17 +162,18 @@ export function createFirestoreRepositories(): Repositories {
       },
       async getMany(ids) {
         const unique = [...new Set(ids)].filter(Boolean);
-        return withRatings(fromSnaps(await getAll(unique.map((id) => props.doc(id)))));
+        return withRatings(await fromSnaps(await getAll(unique.map((id) => props.doc(id)))));
       },
       async create(input: NewProperty) {
+        const idx = await cities();
         if (input.status === "draft") {
           const ref = drafts.doc();
-          await ref.set({ ...draftDoc(input), tint: tintFor(ref.id) });
+          await ref.set({ ...draftDoc(input, idx), tint: tintFor(ref.id) });
           return { ...input, id: ref.id };
         }
         const ref = props.doc();
         const batch = fs.batch();
-        batch.set(ref, { ...propertyOut(input), tint: tintFor(ref.id), totalViews: input.viewCount, periodViews: 0, dailyViews: {} });
+        batch.set(ref, { ...propertyOut(input, idx), tint: tintFor(ref.id), totalViews: input.viewCount, periodViews: 0, dailyViews: {} });
         batch.set(contactRef(ref.id), contactOut(input));
         await batch.commit();
         return { ...input, id: ref.id };
@@ -164,23 +183,24 @@ export function createFirestoreRepositories(): Repositories {
         if (!found) throw new Error(`Property ${id} not found`);
         const { property: current, draft } = found;
         const next = { ...current, ...patch };
+        const idx = await cities();
 
         if (draft && next.status !== "draft") {
           // Publishing a draft: it becomes a regular listing Android can see.
           const batch = fs.batch();
-          batch.set(props.doc(id), { ...propertyOut(next), tint: tintFor(id), totalViews: 0, periodViews: 0, dailyViews: {} });
+          batch.set(props.doc(id), { ...propertyOut(next, idx), tint: tintFor(id), totalViews: 0, periodViews: 0, dailyViews: {} });
           batch.set(contactRef(id), contactOut(next));
           batch.delete(drafts.doc(id));
           await batch.commit();
           return;
         }
         if (draft) {
-          await drafts.doc(id).set(draftDoc(next), { merge: true });
+          await drafts.doc(id).set(draftDoc(next, idx), { merge: true });
           return;
         }
 
-        const before = propertyOut(current);
-        const after = propertyOut(next);
+        const before = propertyOut(current, idx);
+        const after = propertyOut(next, idx);
         const changed: Doc = {};
         for (const [k, v] of Object.entries(after)) if (!sameValue(before[k], v)) changed[k] = v;
         // Android-only fields only move when the web value really changed.
@@ -206,13 +226,13 @@ export function createFirestoreRepositories(): Repositories {
           props.where("ownerId", "==", ownerId).get(),
           drafts.where("ownerId", "==", ownerId).get(),
         ]);
-        return [...(await withRatings(fromSnaps(live.docs))), ...fromSnaps(unpublished.docs)];
+        return [...(await withRatings(await fromSnaps(live.docs))), ...(await fromSnaps(unpublished.docs))];
       },
       async findCandidates(_f: SearchFilters, limit) {
         // City and text are matched in memory: Android stores display names
         // ("Mumbai Metropolitan Region (MMR)") and no search tokens.
         const snap = await props.where("status", "==", STATUS.out("active")).orderBy("publishedAt", "desc").limit(limit).get();
-        return withRatings(fromSnaps(snap.docs));
+        return withRatings(await fromSnaps(snap.docs));
       },
       async setRatingSummary() {
         // Derived from `reviews` on every read (Android writes reviews directly).

@@ -10,6 +10,7 @@
  * - `null` and missing optional values round-trip as `null`.
  * - Methods documented as atomic must be atomic in the backing store.
  */
+import type { AppConfig, City, HomeContent, Page, WelcomeContent } from "@/lib/domain/content";
 import type { SearchFilters } from "@/lib/domain/search";
 import type {
   ContactChannel,
@@ -85,7 +86,29 @@ export interface ViewRepository {
   dailyCounts(propertyId: ID, days: string[]): Promise<DailyViews[]>;
 }
 
+/** Single-document content, keyed by name. */
+export interface ContentDocs {
+  app: AppConfig;
+  home: HomeContent;
+  welcome: WelcomeContent;
+}
+
+/**
+ * Reference data and editable content (cities, home sections, pages).
+ * Read on every page, so services cache it; written by the seed/migration
+ * script or an admin tool.
+ */
+export interface ContentRepository {
+  listCities(): Promise<City[]>;
+  upsertCity(city: City): Promise<void>;
+  getDoc<K extends keyof ContentDocs>(key: K): Promise<ContentDocs[K] | null>;
+  putDoc<K extends keyof ContentDocs>(key: K, value: ContentDocs[K]): Promise<void>;
+  getPage(slug: string): Promise<Page | null>;
+  putPage(page: Page): Promise<void>;
+}
+
 export interface Repositories {
+  content: ContentRepository;
   users: UserRepository;
   properties: PropertyRepository;
   ratings: RatingRepository;

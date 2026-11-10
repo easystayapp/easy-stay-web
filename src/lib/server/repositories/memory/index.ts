@@ -6,8 +6,10 @@
  * Data lives for the lifetime of the server process.
  */
 import { randomUUID } from "node:crypto";
+import type { City, Page } from "@/lib/domain/content";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
-import type { FileStorage, Repositories } from "../types";
+import { SEED_APP_CONFIG, SEED_CITIES, SEED_HOME, SEED_PAGES, SEED_WELCOME } from "../../seed/content";
+import type { ContentDocs, FileStorage, Repositories } from "../types";
 
 interface Store {
   users: Map<string, User>;
@@ -18,6 +20,9 @@ interface Store {
   views: Set<string>;
   dailyViews: Map<string, DailyViews>;
   files: Map<string, { data: Uint8Array; contentType: string }>;
+  cities: Map<string, City>;
+  docs: Partial<ContentDocs>;
+  pages: Map<string, Page>;
 }
 
 const g = globalThis as unknown as { __easyStayMemory?: Store };
@@ -32,6 +37,10 @@ export function memoryStore(): Store {
     views: new Set(),
     dailyViews: new Map(),
     files: new Map(),
+    // Starts with the initial content so the memory backend works out of the box.
+    cities: new Map(SEED_CITIES.map((c) => [c.id, c])),
+    docs: { app: SEED_APP_CONFIG, home: SEED_HOME, welcome: SEED_WELCOME },
+    pages: new Map(SEED_PAGES.map((p) => [p.slug, p])),
   };
   return g.__easyStayMemory;
 }
@@ -42,6 +51,28 @@ export function createMemoryRepositories(): Repositories {
   const s = memoryStore();
 
   return {
+    content: {
+      async listCities() {
+        return [...s.cities.values()].map(clone).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+      },
+      async upsertCity(city) {
+        s.cities.set(city.id, clone(city));
+      },
+      async getDoc(key) {
+        const v = s.docs[key];
+        return v ? clone(v) : null;
+      },
+      async putDoc(key, value) {
+        s.docs[key] = clone(value);
+      },
+      async getPage(slug) {
+        const p = s.pages.get(slug);
+        return p ? clone(p) : null;
+      },
+      async putPage(page) {
+        s.pages.set(page.slug, clone(page));
+      },
+    },
     users: {
       async get(id) {
         const u = s.users.get(id);

@@ -12,11 +12,11 @@ import { Label } from "@/components/ui/label";
 import { OptionGrid, Segmented } from "@/components/ui/primitives";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCatalog } from "@/hooks/use-catalog";
 import { useToast } from "@/hooks/use-toast";
 import { cx } from "@/lib/client/cx";
 import {
   AMENITY_LABEL,
-  CITIES,
   ELECTRICITY_LABEL,
   FURNISHING_LABEL,
   GENDER_LABEL,
@@ -77,7 +77,11 @@ export function BasicsFields({ input, set, errors, contactPhone, withPhotos }: F
   const toast = useToast();
   const [locating, setLocating] = useState(false);
   const [waOn, setWaOn] = useState(!!input.whatsapp);
-  const cityOptions = CITIES.some((c) => c.name === input.city) || !input.city ? CITIES.map((c) => c.name) : [input.city, ...CITIES.map((c) => c.name)];
+  const { cities } = useCatalog();
+  const labels = cities.map((c) => c.label);
+  // Keep a listing's current city selectable even if it's no longer offered.
+  const cityOptions = !input.city || labels.includes(input.city) ? labels : [input.city, ...labels];
+  const localities = cities.find((c) => c.label === input.city)?.localities ?? [];
 
   const pin = () => {
     if (!navigator.geolocation) return toast("Location isn't available on this device.", "error");
@@ -161,7 +165,20 @@ export function BasicsFields({ input, set, errors, contactPhone, withPhotos }: F
               ))}
             </SelectContent>
           </Select>
-          <Input aria-label="Locality" placeholder="Locality" value={input.locality} onChange={(e) => set({ locality: e.target.value })} aria-invalid={!!errors.locality || undefined} />
+          <Input
+            aria-label="Locality"
+            placeholder="Locality"
+            list="locality-options"
+            autoComplete="off"
+            value={input.locality}
+            onChange={(e) => set({ locality: e.target.value })}
+            aria-invalid={!!errors.locality || undefined}
+          />
+          <datalist id="locality-options">
+            {localities.map((l) => (
+              <option key={l} value={l} />
+            ))}
+          </datalist>
         </div>
         <Input
           aria-label="Property address"
