@@ -1,12 +1,13 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Slider } from "@/components/ui/slider";
 import { cx } from "@/lib/client/cx";
 import {
   AMENITY_LABEL,
@@ -15,7 +16,7 @@ import {
   PROPERTY_TYPE_LABEL,
   SHARING_LABEL,
 } from "@/lib/domain/catalog";
-import { formatRupeesShort } from "@/lib/domain/format";
+import { formatRupees, formatRupeesShort } from "@/lib/domain/format";
 import { emptyFilters, sharingOptionsFor, type SearchFilters } from "@/lib/domain/search";
 import { AMENITIES, FURNISHINGS, GENDERS, PROPERTY_TYPES } from "@/lib/domain/types";
 
@@ -107,38 +108,91 @@ function groupsFor(f: SearchFilters, set: (patch: Partial<SearchFilters>) => voi
   ];
 }
 
+/** Slider range: the top of the track means "no maximum". */
+const RENT_MAX = 50_000;
+const RENT_STEP = 500;
+
 function RentInputs({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void }) {
+  // Remount when filters change from outside (Reset, chips, URL) so slider and boxes follow.
+  return <RentRange key={`${f.minRent ?? ""}-${f.maxRent ?? ""}`} f={f} set={set} />;
+}
+
+function RentRange({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void }) {
   const id = useId();
+  const [range, setRange] = useState<[number, number]>([Math.min(f.minRent ?? 0, RENT_MAX), Math.min(f.maxRent ?? RENT_MAX, RENT_MAX)]);
+  // Text shown in the boxes: follows the slider while dragging, and holds what you type
+  // (including a maximum above the slider's top, which the slider can't show).
+  const [text, setText] = useState<{ minRent: string; maxRent: string }>({ minRent: f.minRent != null ? String(f.minRent) : "", maxRent: f.maxRent != null ? String(f.maxRent) : "" });
   const parse = (v: string) => {
     const n = Number(v.replace(/\D/g, ""));
     return v.trim() && Number.isFinite(n) ? n : null;
   };
+  const label = `${range[0] > 0 ? formatRupees(range[0]) : "₹0"} – ${range[1] >= RENT_MAX ? `${formatRupees(RENT_MAX)}+` : formatRupees(range[1])}`;
+
+  /** Applies a min/max pair; a reversed pair is swapped, and 0 / top-of-track mean "no limit". */
+  const commit = (min: number | null, max: number | null) => {
+    if (min != null && max != null && min > max) [min, max] = [max, min];
+    const next = { minRent: min && min > 0 ? min : null, maxRent: max != null && max < RENT_MAX ? max : null };
+    if (next.minRent !== f.minRent || next.maxRent !== f.maxRent) set(next);
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-2.5">
-      {(["minRent", "maxRent"] as const).map((k) => (
-        <Field key={k} className="gap-1.5">
-          <FieldLabel htmlFor={`${id}-${k}`} className="text-[11px] text-muted-foreground">
-            {k === "minRent" ? "Minimum" : "Maximum"}
-          </FieldLabel>
-          <InputGroup className="h-12">
-            <InputGroupAddon>
-              <InputGroupText className="font-bold text-foreground">₹</InputGroupText>
-            </InputGroupAddon>
-            <InputGroupInput
-              id={`${id}-${k}`}
-              inputMode="numeric"
-              placeholder={k === "minRent" ? "0" : "Any"}
-              defaultValue={f[k] ?? ""}
-              key={`${k}-${f[k] ?? ""}`}
-              onBlur={(e) => {
-                const v = parse(e.target.value);
-                if (v !== f[k]) set({ [k]: v });
-              }}
-              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            />
-          </InputGroup>
-        </Field>
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Selected</span>
+        <span className="text-sm font-extrabold text-brand-dark" aria-live="polite">{label}</span>
+      </div>
+      <div className="px-1">
+        <Slider
+          min={0}
+          max={RENT_MAX}
+          step={RENT_STEP}
+          minStepsBetweenThumbs={1}
+          value={range}
+          thumbLabels={["Minimum rent", "Maximum rent"]}
+          onValueChange={(v) => {
+            setRange([v[0], v[1]]);
+            setText({ minRent: v[0] > 0 ? String(v[0]) : "", maxRent: v[1] < RENT_MAX ? String(v[1]) : "" });
+          }}
+          onValueCommit={(v) => commit(v[0], v[1])}
+        />
+        <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-muted-foreground">
+          <span>₹0</span>
+          <span>{formatRupeesShort(RENT_MAX)}+</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        {(["minRent", "maxRent"] as const).map((k) => (
+          <Field key={k} className="gap-1.5">
+            <FieldLabel htmlFor={`${id}-${k}`} className="text-[11px] text-muted-foreground">
+              {k === "minRent" ? "Minimum" : "Maximum"}
+            </FieldLabel>
+            <InputGroup className="h-12">
+              <InputGroupAddon>
+                <InputGroupText className="font-bold text-foreground">₹</InputGroupText>
+              </InputGroupAddon>
+              <InputGroupInput
+                id={`${id}-${k}`}
+                inputMode="numeric"
+                placeholder={k === "minRent" ? "0" : "Any"}
+                value={text[k]}
+                onChange={(e) => {
+                  // Keep the slider in step while typing.
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setText((t) => ({ ...t, [k]: digits }));
+                  const v = parse(digits);
+                  setRange((r) => (k === "minRent" ? [Math.min(v ?? 0, r[1]), r[1]] : [r[0], Math.max(Math.min(v ?? RENT_MAX, RENT_MAX), r[0])]));
+                }}
+                onBlur={(e) => {
+                  const v = parse(e.target.value);
+                  commit(k === "minRent" ? v : f.minRent, k === "maxRent" ? v : f.maxRent);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              />
+            </InputGroup>
+          </Field>
+        ))}
+      </div>
     </div>
   );
 }
@@ -161,9 +215,9 @@ function ChipToggle({ on, onClick, children }: { on: boolean; onClick: () => voi
 
 function CheckRow({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: () => void }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex min-h-6 items-center gap-3">
       <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
-      <Label htmlFor={id} className="cursor-pointer text-sm font-semibold text-muted-2">
+      <Label htmlFor={id} className="cursor-pointer text-sm leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
         {label}
       </Label>
     </div>
@@ -175,8 +229,9 @@ function ListGroup({ g }: { g: Group }) {
   const id = useId();
   return (
     <div className="border-t border-line-3 pt-5">
-    <FieldSet className="gap-3">
-      <FieldLegend className="mb-0 text-sm font-extrabold">{g.label}</FieldLegend>
+    <FieldSet className="gap-3.5">
+      {/* A legend is outside the flex flow, so it needs its own bottom margin. */}
+      <FieldLegend className="mb-3.5 text-sm font-extrabold">{g.label}</FieldLegend>
       {g.kind === "multi" ? (
         g.options.length > 3 ? (
           <MultiSelect label={g.label} options={g.options} value={g.value} onChange={g.set} placeholder="Any" />
@@ -186,11 +241,11 @@ function ListGroup({ g }: { g: Group }) {
           ))
         )
       ) : (
-        <RadioGroup value={g.value ?? "any"} onValueChange={(v) => g.set(v === "any" ? null : v)} className="gap-2.5" aria-label={g.label}>
+        <RadioGroup value={g.value ?? "any"} onValueChange={(v) => g.set(v === "any" ? null : v)} className="gap-3.5" aria-label={g.label}>
           {[{ value: "any", label: "Any" }, ...g.options].map((o) => (
-            <div key={o.value} className="flex items-center gap-2.5">
+            <div key={o.value} className="flex min-h-6 items-center gap-3">
               <RadioGroupItem id={`${id}-${o.value}`} value={o.value} />
-              <Label htmlFor={`${id}-${o.value}`} className="cursor-pointer text-sm font-semibold text-muted-2">
+              <Label htmlFor={`${id}-${o.value}`} className="cursor-pointer text-sm leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
                 {o.label}
               </Label>
             </div>
