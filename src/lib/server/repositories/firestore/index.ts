@@ -3,11 +3,11 @@
  * EasyStay Android app — see ./schema.ts for the layout and the mapping.
  * Services never see this format: they get and give domain entities.
  */
-import { FieldValue, getFirestore, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import { summarize } from "@/lib/domain/rating";
 import type { SearchFilters } from "@/lib/domain/search";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
-import { getAdminApp } from "../../firebase-admin";
+import { adminDb } from "../../firebase-admin";
 import type { NewProperty, PropertyPatch, Repositories, UserPatch } from "../types";
 import { firestoreBatch, firestoreDocStore } from "../docstore";
 import { createFirestoreContent } from "./content";
@@ -35,14 +35,7 @@ import {
 
 export { COLLECTIONS } from "./schema";
 
-let db: Firestore | null = null;
-function firestore(): Firestore {
-  if (!db) {
-    db = getFirestore(getAdminApp());
-    db.settings({ ignoreUndefinedProperties: true });
-  }
-  return db;
-}
+const firestore = (): Firestore => adminDb();
 
 /** Firestore document ids can't contain "/"; keep keys readable and bounded. */
 const safeKey = (s: string) => s.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 120);

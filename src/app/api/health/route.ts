@@ -44,6 +44,7 @@ export async function GET(req: Request) {
   const report: Record<string, unknown> = {
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     region: process.env.VERCEL_REGION ?? null,
+    node: process.version,
     env: Object.fromEntries(
       ["DATA_BACKEND", "FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "GOOGLE_APPLICATION_CREDENTIALS", "STORAGE_BACKEND", "R2_BUCKET", "NEXT_PUBLIC_SITE_URL"].map((k) => [k, has(k)]),
     ),
@@ -56,9 +57,16 @@ export async function GET(req: Request) {
     FIREBASE_PRIVATE_KEY: privateKeyShape(),
   };
   try {
-    const { getAdminApp } = await import("@/lib/server/firebase-admin");
-    const { getFirestore } = await import("firebase-admin/firestore");
-    const snap = await getFirestore(getAdminApp()).collection("cities").limit(1).get();
+    await import("firebase-admin/auth");
+    report.authModule = "ok";
+  } catch (err) {
+    console.error("[health] firebase-admin/auth failed to load", err);
+    const e = err as Error & { code?: unknown };
+    report.authModule = { status: "FAILED", code: e.code == null ? null : String(e.code), ...(verbose ? { message: String(e.message).slice(0, 400) } : {}) };
+  }
+  try {
+    const { adminDb } = await import("@/lib/server/firebase-admin");
+    const snap = await adminDb().collection("cities").limit(1).get();
     report.firestore = `ok (${snap.size} city read)`;
   } catch (err) {
     const e = err as Error & { code?: unknown };

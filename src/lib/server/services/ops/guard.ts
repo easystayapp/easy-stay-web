@@ -76,13 +76,12 @@ export async function notify(
 }
 
 async function push(n: { userId: string; title: string; body: string; href: string }) {
-  const [{ getFirestore }, { getMessaging }, { getAdminApp }] = await Promise.all([
-    import("firebase-admin/firestore"),
+  const [{ getMessaging }, { getAdminApp, adminDb }] = await Promise.all([
     import("firebase-admin/messaging"),
     import("../../firebase-admin"),
   ]);
   const app = getAdminApp();
-  const tokens = ((await getFirestore(app).collection("users").doc(n.userId).get()).get("fcmTokens") as string[] | undefined) ?? [];
+  const tokens = ((await adminDb().collection("users").doc(n.userId).get()).get("fcmTokens") as string[] | undefined) ?? [];
   if (!tokens.length) return;
   await getMessaging(app).sendEachForMulticast({
     tokens: tokens.slice(0, 20),

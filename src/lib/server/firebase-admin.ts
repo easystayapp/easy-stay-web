@@ -1,4 +1,5 @@
 import { applicationDefault, cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /**
  * Lazily initialises the Admin SDK from environment variables.
@@ -48,4 +49,19 @@ function serviceAccountFromEnv(): { projectId: string; clientEmail: string; priv
     throw new Error("FIREBASE_SERVICE_ACCOUNT is missing client_email, private_key or project_id.");
   }
   return { projectId: json.project_id, clientEmail: json.client_email, privateKey: json.private_key };
+}
+
+let db: Firestore | null = null;
+
+/**
+ * The app's single Firestore instance. Settings can only be applied before the
+ * first use, so every caller (repositories, notifications, diagnostics) must go
+ * through here rather than calling getFirestore() directly.
+ */
+export function adminDb(): Firestore {
+  if (!db) {
+    db = getFirestore(getAdminApp());
+    db.settings({ ignoreUndefinedProperties: true });
+  }
+  return db;
 }
