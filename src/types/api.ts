@@ -72,10 +72,14 @@ export interface SearchResponse {
 }
 
 export interface Suggestion {
-  kind: "locality" | "type";
+  kind: "locality" | "type" | "property";
   label: string;
   sub: string;
   query: { q: string; type?: PropertyType };
+  /** Listing suggestions open the listing directly. */
+  href?: string;
+  /** Cover photo for listing suggestions. */
+  imageUrl?: string | null;
 }
 
 export interface ContactInfo {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PropertyCard } from "@/components/property/property-card";
+import { useCatalog } from "@/hooks/use-catalog";
 import { useCity } from "@/hooks/use-city";
 import { activeChips, FiltersPanel, resetFilters } from "@/components/search/filters-panel";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,10 @@ function ResultsView() {
   const params = useSearchParams();
   const router = useRouter();
   const { city } = useCity();
+  const { cities } = useCatalog();
   const filters = parseFilters(params, city);
+  const cityInfo = cities.find((c) => c.label === filters.city);
+  const areas = [...(cityInfo?.localities ?? []), ...(cityInfo?.popular ?? [])];
   const key = serializeFilters(filters).toString();
 
   const [data, setData] = useState<SearchResponse | null>(null);
@@ -111,7 +115,7 @@ function ResultsView() {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[22px] font-extrabold tracking-tight md:text-[28px]">
-            {searchHeading(filters)}
+            {searchHeading(filters, areas)}
             {data && (
               <span className="ml-2 text-base font-semibold text-muted-foreground">
                 <span className="sr-only">, </span>

@@ -1,8 +1,9 @@
 "use client";
 
 import { BedDouble, Building2, House, MapPin, TrendingUp } from "lucide-react";
-import { Fragment, useId, useMemo, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { useCatalog } from "@/hooks/use-catalog";
+import { api } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
@@ -26,7 +27,16 @@ interface TypeOption {
   type: PropertyType;
 }
 
-type Option = AreaOption | TypeOption;
+/** A listing whose name matches what was typed ("Sunrise PG"). */
+interface ListingOption {
+  kind: "listing";
+  label: string;
+  sub: string;
+  href: string;
+  imageUrl: string | null;
+}
+
+type Option = AreaOption | TypeOption | ListingOption;
 
 /** What the user picked: the search text and, for a shortcut, a property type. */
 export interface LocalitySelection {
@@ -120,6 +130,7 @@ export function LocalityCombobox({
   inputClassName,
   listClassName,
   inputSlot,
+  onListing,
 }: {
   id: string;
   city: string;
@@ -137,6 +148,8 @@ export function LocalityCombobox({
   listClassName?: string;
   /** `data-slot` for the input, e.g. "input-group-control" inside an InputGroup. */
   inputSlot?: string;
+  /** Also suggest listings by name; called with the listing's URL when one is picked. */
+  onListing?: (href: string) => void;
 }) {
   const { cities } = useCatalog();
   const listId = useId();
@@ -144,17 +157,55 @@ export function LocalityCombobox({
   const [active, setActive] = useState(-1);
 
   const current = cities.find((c) => c.label === city);
-  const options = useMemo(
-    () => optionsFor(current?.localities ?? [], current?.popular ?? [], value, typeShortcuts ?? null),
-    [current, value, typeShortcuts],
+  const query = value.trim();
+
+  // Listings by name come from the server (debounced); kept per query so stale results never show.
+  const listingsOn = !!onListing;
+  const [found, setFound] = useState<{ key: string; items: ListingOption[] }>({ key: "", items: [] });
+  useEffect(() => {
+    if (!listingsOn || query.length < 2) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      api
+        .suggestions(query, city)
+        .then((r) => {
+          if (cancelled) return;
+          const items = r.items
+            .filter((x) => x.kind === "property" && x.href)
+            .map<ListingOption>((x) => ({ kind: "listing", label: x.label, sub: x.sub, href: x.href!, imageUrl: x.imageUrl ?? null }));
+          setFound({ key: `${city}|${query}`, items });
+        })
+        .catch(() => {});
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [listingsOn, query, city]);
+  const listings = useMemo(
+    () => (listingsOn && query.length >= 2 && found.key === `${city}|${query}` ? found.items : []),
+    [listingsOn, query, city, found],
   );
+
+  const options = useMemo<Option[]>(() => {
+    const base = optionsFor(current?.localities ?? [], current?.popular ?? [], value, typeShortcuts ?? null);
+    if (!listings.length) return base;
+    // Areas, then matching listings, then type shortcuts.
+    const areas = base.filter((o) => o.kind === "area");
+    return [...areas, ...listings, ...base.filter((o) => o.kind !== "area")];
+  }, [current, value, typeShortcuts, listings]);
   const showList = open && options.length > 0;
   const optionId = (i: number) => `${listId}-opt-${i}`;
 
   const pick = (o: Option) => {
-    onChange(o.area);
     setOpen(false);
     setActive(-1);
+    if (o.kind === "listing") {
+      onChange(o.label);
+      onListing?.(o.href);
+      return;
+    }
+    onChange(o.area);
     onSelect?.({ q: o.area, type: o.kind === "type" ? o.type : null });
   };
 
@@ -212,16 +263,22 @@ export function LocalityCombobox({
           )}
         >
           {options.map((o, i) => {
-            const Icon = o.kind === "type" ? TYPE_ICON[o.type] : o.popular ? TrendingUp : MapPin;
+            const Icon = o.kind === "type" ? TYPE_ICON[o.type] : o.kind === "listing" ? Building2 : o.popular ? TrendingUp : MapPin;
             const prev = options[i - 1];
             const empty = !value.trim();
-            // Section headings before typing; a divider before the type shortcuts after.
+            // Section headings before typing; dividers between groups after.
             const heading =
-              empty && !prev && o.kind === "area" ? `Popular in ${city}` : empty && o.kind === "type" && prev?.kind !== "type" ? "Browse by type" : null;
+              empty && !prev && o.kind === "area"
+                ? `Popular in ${city}`
+                : empty && o.kind === "type" && prev?.kind !== "type"
+                  ? "Browse by type"
+                  : o.kind === "listing" && prev?.kind !== "listing"
+                    ? "Properties"
+                    : null;
             const divider = !empty && o.kind === "type" && prev?.kind !== "type";
             const where = o.kind === "type" ? o.area || city : null;
             return (
-              <Fragment key={o.kind === "type" ? `type-${o.type}` : o.area}>
+              <Fragment key={o.kind === "type" ? `type-${o.type}` : o.kind === "listing" ? o.href : o.area}>
                 {heading && (
                   <li
                     role="presentation"
@@ -242,10 +299,22 @@ export function LocalityCombobox({
                     divider && "mt-1 border-t border-line pt-3",
                   )}
                 >
-                  <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
-                    <Icon aria-hidden className="size-4" />
-                  </span>
-                  {o.kind === "type" ? (
+                  {o.kind === "listing" && o.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- listing photo from user uploads
+                    <img src={o.imageUrl} alt="" className="size-8 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
+                      <Icon aria-hidden className="size-4" />
+                    </span>
+                  )}
+                  {o.kind === "listing" ? (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold">
+                        <Highlight text={o.label} query={value} />
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">{o.sub}</span>
+                    </span>
+                  ) : o.kind === "type" ? (
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate font-semibold">
                         {TYPE_NOUN[o.type]} in <b className="font-extrabold">{where}</b>

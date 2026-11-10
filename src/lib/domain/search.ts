@@ -238,13 +238,22 @@ export function sortProperties(items: Property[], sort: SearchSort): Property[] 
   return by;
 }
 
-/** Human summary of the search, e.g. "PGs in Gachibowli". */
-export function searchHeading(f: SearchFilters): string {
+/**
+ * Human summary of the search: "PGs in Gachibowli" when the text is one of
+ * the city's areas, otherwise "Places to stay matching “Sunrise” in Hyderabad".
+ */
+export function searchHeading(f: SearchFilters, areas: string[] = []): string {
   const noun =
     f.types.length === 1
       ? { pg: "PGs", room: "Rooms", flat: "Flats" }[f.types[0]]
       : "Places to stay";
-  return `${noun} in ${f.q ? titleCase(f.q) : f.city}`;
+  if (!f.q) return `${noun} in ${f.city}`;
+  const q = f.q.trim().toLowerCase();
+  const isArea = areas.some((a) => {
+    const name = a.toLowerCase();
+    return name === q || name.split(" (")[0] === q;
+  });
+  return isArea ? `${noun} in ${titleCase(f.q)}` : `${noun} matching “${f.q}” in ${f.city}`;
 }
 
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());

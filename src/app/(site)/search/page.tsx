@@ -101,15 +101,20 @@ function SearchView() {
           <span className="eyebrow mb-2">Suggestions</span>
           {suggestions.map((s) => (
             <button
-              key={s.label}
+              key={`${s.kind}-${s.href ?? s.label}`}
               type="button"
-              onClick={() => go(s.label, s.query)}
+              onClick={() => (s.href ? router.push(s.href) : go(s.label, s.query))}
               className="flex items-center gap-3.5 rounded-[14px] px-2 py-2.5 text-left hover:bg-surface"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blush text-brand">
-                {s.kind === "locality" ? <MapPin aria-hidden className="size-[18px]" /> : <Building2 aria-hidden className="size-[18px]" />}
-              </span>
-              <span className="flex flex-col">
+              {s.kind === "property" && s.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- listing photo from user uploads
+                <img src={s.imageUrl} alt="" className="size-10 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blush text-brand">
+                  {s.kind === "locality" ? <MapPin aria-hidden className="size-[18px]" /> : <Building2 aria-hidden className="size-[18px]" />}
+                </span>
+              )}
+              <span className="flex min-w-0 flex-col">
                 <span className="text-[15px] font-bold">
                   <Highlight text={s.label} q={q} />
                 </span>

@@ -67,6 +67,7 @@ function HeaderSearchForm({ params }: { params: URLSearchParams }) {
         </InputGroupAddon>
         <LocalityCombobox
           id="header-q"
+          onListing={(href) => router.push(href)}
           city={city}
           value={q}
           onChange={setQ}

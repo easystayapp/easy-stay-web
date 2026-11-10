@@ -32,6 +32,7 @@ import {
   type SearchFilters,
 } from "@/lib/domain/search";
 import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
+import { formatRupees } from "@/lib/domain/format";
 import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/time";
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
 import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
@@ -78,11 +79,12 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
     return tokens.every((t) => words.some((w) => w.startsWith(t)));
   };
 
-  const candidates = await repos.properties.findCandidates({ ...emptyFilters(city), q }, 100);
+  const candidates = await repos.properties.findCandidates({ ...emptyFilters(city), q }, CANDIDATE_LIMIT);
   const now = new Date();
+  const visible = candidates.filter((p) => isPubliclyVisible(p, now) && p.location.city === city);
   const counts = new Map<string, Set<PropertyType>>();
-  for (const p of candidates) {
-    if (!isPubliclyVisible(p, now) || !matchesQ(p.location.locality)) continue;
+  for (const p of visible) {
+    if (!matchesQ(p.location.locality)) continue;
     const set = counts.get(p.location.locality) ?? new Set();
     set.add(p.type);
     counts.set(p.location.locality, set);
@@ -92,6 +94,19 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
   const out: Suggestion[] = [];
   const localities = [...counts.keys()].slice(0, 3);
   for (const l of localities) out.push({ kind: "locality", label: l, sub: `Locality · ${city}`, query: { q: l } });
+
+  // Listings whose name matches ("Sunrise PG", "SLVS hostel").
+  for (const p of visible.filter((p) => matchesQ(p.title)).slice(0, 3)) {
+    out.push({
+      kind: "property",
+      label: p.title,
+      sub: `${PROPERTY_TYPE_LABEL[p.type]} · ${p.location.locality} · ${formatRupees(p.rent)}/mo`,
+      query: { q: p.title },
+      href: `/properties/${p.id}`,
+      imageUrl: p.photos[0]?.url ?? null,
+    });
+  }
+
   const top = localities[0];
   if (top) {
     const types = counts.get(top)!;
@@ -100,7 +115,7 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
       out.push({ kind: "type", label: `${noun} in ${top}`, sub: `Property type · ${PROPERTY_TYPE_LABEL[t]}`, query: { q: top, type: t } });
     }
   }
-  return out.slice(0, 6);
+  return out.slice(0, 9);
 }
 
 async function loadProperty(repos: Repositories, id: string): Promise<Property> {

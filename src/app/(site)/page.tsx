@@ -132,6 +132,7 @@ export default function HomePage() {
                   </label>
                   <LocalityCombobox
                     id="hero-q"
+                    onListing={(href) => router.push(href)}
                     city={city}
                     value={q}
                     onChange={setQ}
