@@ -14,7 +14,7 @@ try {
 
 async function main() {
   const { getRepositories, dataBackend } = await import("@/lib/server/repositories");
-  const { seedDemoData } = await import("@/lib/server/seed/demo");
+  const { backfillDemoPhotos, seedDemoData } = await import("@/lib/server/seed/demo");
   if (dataBackend() === "memory") {
     console.log("DATA_BACKEND=memory seeds itself on startup — nothing to do.");
     return;
@@ -22,7 +22,8 @@ async function main() {
   const repos = await getRepositories();
   const existing = await repos.properties.listByOwner("demo-owner-rahul");
   if (existing.length && !process.argv.includes("--force")) {
-    console.log(`Demo data already present (${existing.length} listings). Use --force to add more.`);
+    const updated = await backfillDemoPhotos(repos);
+    console.log(`Demo data already present (${existing.length} listings); added photos to ${updated}. Use --force to add more.`);
     return;
   }
   const created = await seedDemoData(repos);

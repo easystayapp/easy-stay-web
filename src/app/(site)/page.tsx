@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FeaturedCarousel } from "@/components/property/featured-carousel";
 import { PropertyCard } from "@/components/property/property-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
@@ -16,8 +17,7 @@ import { PageSpinner } from "@/components/ui/page-spinner";
 import { api } from "@/lib/client/api";
 import { welcomeSeen } from "@/lib/client/prefs";
 import { CITIES, popularLocalities } from "@/lib/domain/catalog";
-import type { PropertyCard as Card } from "@/types/api";
-import { formatRupees } from "@/lib/domain/format";
+import type { FeaturedStay, PropertyCard as Card } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
 
@@ -43,6 +43,7 @@ export default function HomePage() {
   const { city, setCity } = useCity();
   const { me } = useAuth();
   const [items, setItems] = useState<Card[] | null>(null);
+  const [featured, setFeatured] = useState<FeaturedStay[] | null>(null);
   const [q, setQ] = useState("");
   const [type, setType] = useState<PropertyType | "">("");
   const [budget, setBudget] = useState(0);
@@ -57,13 +58,16 @@ export default function HomePage() {
       .search({ ...emptyFilters(city) })
       .then((r) => !cancelled && setItems(r.items.slice(0, 8)))
       .catch(() => !cancelled && setItems([]));
+    api
+      .featured(city)
+      .then((r) => !cancelled && setFeatured(r.items))
+      .catch(() => !cancelled && setFeatured([]));
     return () => {
       cancelled = true;
     };
   }, [city]);
 
   const href = (f: Partial<SearchFilters>) => `/properties?${serializeFilters({ ...emptyFilters(city), ...f })}`;
-  const featured = items?.[0];
 
   return (
     <>
@@ -115,35 +119,39 @@ export default function HomePage() {
                   className="h-auto rounded-none border-0 bg-transparent p-0 text-[15px] font-bold focus-visible:ring-0"
                 />
               </div>
-              <div className="flex min-w-0 flex-[1_1_140px] flex-col gap-1 rounded-xl bg-surface px-3.5 py-2">
-                <Label htmlFor="hero-type" className="text-[11px] text-muted-foreground">Type</Label>
-                <Select value={type || "any"} onValueChange={(v) => setType(v === "any" ? "" : (v as PropertyType))}>
-                  <SelectTrigger id="hero-type" className="h-auto! w-full border-0 bg-transparent p-0 text-[15px] font-bold shadow-none focus-visible:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="pg">PG / Hostel</SelectItem>
-                    <SelectItem value="room">Room</SelectItem>
-                    <SelectItem value="flat">Flat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex min-w-0 flex-[1_1_140px] flex-col gap-1 rounded-xl bg-surface px-3.5 py-2">
-                <Label htmlFor="hero-budget" className="text-[11px] text-muted-foreground">Budget</Label>
-                <Select value={String(budget)} onValueChange={(v) => setBudget(Number(v))}>
-                  <SelectTrigger id="hero-budget" className="h-auto! w-full border-0 bg-transparent p-0 text-[15px] font-bold shadow-none focus-visible:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    {BUDGETS.map((b, i) => (
-                      <SelectItem key={b.label} value={String(i)}>
-                        {b.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={type || "any"} onValueChange={(v) => setType(v === "any" ? "" : (v as PropertyType))}>
+                <SelectTrigger id="hero-type" aria-label="Property type" className="h-auto! min-w-0 flex-[1_1_140px] rounded-xl border-0 bg-surface px-3.5 py-2 text-left shadow-none hover:bg-[#f1ebec] data-[state=open]:bg-[#f1ebec]">
+                  <span className="flex min-w-0 flex-col items-start gap-0.5">
+                    <span className="text-[11px] font-bold text-muted-foreground">Type</span>
+                    <span className="text-[15px] font-bold text-ink">
+                      <SelectValue />
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="pg">PG / Hostel</SelectItem>
+                  <SelectItem value="room">Room</SelectItem>
+                  <SelectItem value="flat">Flat</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={String(budget)} onValueChange={(v) => setBudget(Number(v))}>
+                <SelectTrigger id="hero-budget" aria-label="Budget" className="h-auto! min-w-0 flex-[1_1_140px] rounded-xl border-0 bg-surface px-3.5 py-2 text-left shadow-none hover:bg-[#f1ebec] data-[state=open]:bg-[#f1ebec]">
+                  <span className="flex min-w-0 flex-col items-start gap-0.5">
+                    <span className="text-[11px] font-bold text-muted-foreground">Budget</span>
+                    <span className="text-[15px] font-bold text-ink">
+                      <SelectValue />
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {BUDGETS.map((b, i) => (
+                    <SelectItem key={b.label} value={String(i)}>
+                      {b.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <button
                 type="submit"
                 className="flex min-h-[52px] flex-[1_1_120px] items-center justify-center gap-2 rounded-xl bg-brand text-[15px] font-extrabold text-white hover:bg-brand-dark"
@@ -169,23 +177,15 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div className="relative hidden h-[420px] min-w-0 flex-[1_1_360px] items-center justify-center rounded-[32px] bg-blush-2 md:flex">
-            <Image src="/brand/logo-mark.png" alt="" width={220} height={194} className="h-auto w-[46%] max-w-[220px] opacity-90" />
-            {featured && (
-              <Link
-                href={`/properties/${featured.id}`}
-                className="absolute right-6 bottom-6 left-6 flex max-w-[320px] gap-3 rounded-[18px] bg-white p-3 text-ink shadow-[0_10px_28px_rgba(30,27,31,0.12)] hover:text-ink"
-              >
-                <span className="size-16 shrink-0 rounded-xl bg-tint-2" />
-                <span className="flex flex-col justify-center gap-0.5">
-                  <span className="text-sm font-bold">{featured.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {featured.rating.count >= 3 && featured.rating.average ? `★ ${featured.rating.average.toFixed(1)} · ` : ""}
-                    {featured.locality}
-                  </span>
-                  <span className="text-sm font-extrabold text-brand">{formatRupees(featured.rent)}/mo</span>
-                </span>
-              </Link>
+          <div className="hidden min-w-0 flex-[1_1_360px] md:block">
+            {featured === null ? (
+              <div className="h-[420px] animate-pulse rounded-[32px] bg-blush-2" />
+            ) : featured.length ? (
+              <FeaturedCarousel items={featured} city={city} />
+            ) : (
+              <div className="flex h-[420px] items-center justify-center rounded-[32px] bg-blush-2">
+                <Image src="/brand/logo-mark.png" alt="" width={220} height={194} className="h-auto w-[46%] max-w-[220px] opacity-90" />
+              </div>
             )}
           </div>
         </div>

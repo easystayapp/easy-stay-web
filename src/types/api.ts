@@ -40,17 +40,21 @@ export interface PropertyCard {
   food: boolean;
   amenities: Amenity[];
   coverUrl: string | null;
+  /** All photo URLs, cover first. */
+  photos: string[];
   availableFrom: string | null;
   publishedAt: string | null;
   rating: RatingBadge;
 }
+
+/** A home-carousel stay (the card already carries every photo). */
+export type FeaturedStay = PropertyCard;
 
 export interface PropertyDetail extends PropertyCard {
   status: ListingStatus;
   deposit: number | null;
   address: string;
   geo: GeoPoint | null;
-  photos: string[];
   electricity: ElectricityBilling | null;
   description: string;
   factors: Record<RatingFactor, number | null>;

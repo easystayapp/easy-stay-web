@@ -1,5 +1,6 @@
 import type {
   EditableProperty,
+  FeaturedStay,
   OwnerListingsResponse,
   PropertyDetail,
   PropertyStats,
@@ -26,6 +27,7 @@ import {
   matchesFilters,
   normalizeText,
   PAGE_SIZE,
+  pickFeatured,
   sortProperties,
   type SearchFilters,
 } from "@/lib/domain/search";
@@ -58,6 +60,13 @@ export async function searchProperties(repos: Repositories, filters: SearchFilte
     page,
     pageCount,
   };
+}
+
+/** Top-rated stays in a city, mixed across PG / room / flat (home carousel). */
+export async function featuredProperties(repos: Repositories, city: string, n = 5): Promise<FeaturedStay[]> {
+  const now = new Date();
+  const visible = (await repos.properties.findCandidates(emptyFilters(city), CANDIDATE_LIMIT)).filter((p) => isPubliclyVisible(p, now));
+  return pickFeatured(visible, n).map(toCard);
 }
 
 export async function searchSuggestions(repos: Repositories, q: string, city: string): Promise<Suggestion[]> {

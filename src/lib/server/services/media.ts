@@ -42,25 +42,28 @@ export async function uploadThroughServer(repos: Repositories, auth: AuthUser, f
 }
 
 /**
- * Turns client-submitted photos into trusted ones: the path must be in the
- * owner's namespace, newly added objects must exist and be valid images, and
- * the URL is always rebuilt from the storage key.
+ * Turns client-submitted photos into trusted ones. Photos already on the
+ * listing are kept exactly as stored. New ones must be in the owner's upload
+ * namespace, exist, and be valid images; their URL is built from the storage
+ * key, never taken from the client.
  */
 export async function verifyPhotos(ownerId: string, photos: Photo[], alreadyStored: Photo[] = []): Promise<Photo[]> {
   const storage = getFileStorage();
-  const known = new Set(alreadyStored.map((p) => p.path));
+  const known = new Map(alreadyStored.map((p) => [p.path, p]));
   const prefix = ownerPrefix(ownerId);
   const checks = photos.map(async (p) => {
+    // Photos already on the listing keep their stored URL (they may live on a
+    // different backend, e.g. bundled demo photos or a previous storage).
+    const stored = known.get(p.path);
+    if (stored) return stored;
     if (!p.path.startsWith(prefix) || p.path.includes("..")) {
       throw new DomainError("invalid_input", "Upload photos from this device.", { photos: "invalid" });
     }
-    if (!known.has(p.path)) {
-      const stat = await storage.stat(p.path);
-      if (!stat) throw new DomainError("invalid_input", "A photo didn't finish uploading. Please add it again.", { photos: "missing" });
-      if (stat.size > MAX_PHOTO_BYTES || (stat.contentType && !PHOTO_TYPES[stat.contentType])) {
-        await storage.delete(p.path).catch(() => {});
-        throw new DomainError("invalid_input", "Each photo must be a JPG, PNG or WebP under 5 MB.", { photos: "invalid" });
-      }
+    const stat = await storage.stat(p.path);
+    if (!stat) throw new DomainError("invalid_input", "A photo didn't finish uploading. Please add it again.", { photos: "missing" });
+    if (stat.size > MAX_PHOTO_BYTES || (stat.contentType && !PHOTO_TYPES[stat.contentType])) {
+      await storage.delete(p.path).catch(() => {});
+      throw new DomainError("invalid_input", "Each photo must be a JPG, PNG or WebP under 5 MB.", { photos: "invalid" });
     }
     return { path: p.path, url: storage.publicUrl(p.path) };
   });
@@ -68,6 +71,9 @@ export async function verifyPhotos(ownerId: string, photos: Photo[], alreadyStor
 }
 
 export async function deleteMedia(paths: string[]): Promise<void> {
+  // Only user uploads are ours to delete (never bundled demo photos).
+  paths = paths.filter((p) => p.startsWith("property-photos/"));
+  if (!paths.length) return;
   const storage = getFileStorage();
   await Promise.allSettled(paths.map((p) => storage.delete(p)));
 }

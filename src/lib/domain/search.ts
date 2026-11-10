@@ -3,7 +3,7 @@
  * adapter. Adapters may push some filters down to the database, but
  * `matchesFilters` is the reference behaviour and is always applied.
  */
-import { DEFAULT_CITY, PROPERTY_TYPE_LABEL, SHARING_BY_TYPE, SHARING_LABEL } from "./catalog";
+import { DEFAULT_CITY, MIN_RATINGS_TO_SHOW, PROPERTY_TYPE_LABEL, SHARING_BY_TYPE, SHARING_LABEL } from "./catalog";
 import { factorAverage } from "./rating";
 import { isPubliclyVisible } from "./listing";
 import { addDays, parseDayKey, startOfDayIST } from "./time";
@@ -248,3 +248,33 @@ export function searchHeading(f: SearchFilters): string {
 }
 
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+/* ------------------------------------------------------------ featured */
+
+const byRating = (a: Property, b: Property) =>
+  (b.ratingSummary.average ?? 0) - (a.ratingSummary.average ?? 0) || b.ratingSummary.count - a.ratingSummary.count;
+
+/**
+ * Top-rated stays with a mix of property types: each round takes the best
+ * remaining listing of every type (best first), so one type can't fill the
+ * whole list. Only listings with enough ratings to show a score qualify;
+ * newer listings fill any remaining slots.
+ */
+export function pickFeatured(items: Property[], n = 5): Property[] {
+  const rated = items
+    .filter((p) => p.ratingSummary.count >= MIN_RATINGS_TO_SHOW && p.ratingSummary.average != null)
+    .sort(byRating);
+  const queues = new Map<PropertyType, Property[]>();
+  for (const p of rated) queues.set(p.type, [...(queues.get(p.type) ?? []), p]);
+
+  const out: Property[] = [];
+  while (out.length < n && [...queues.values()].some((q) => q.length)) {
+    const heads = [...queues.values()].map((q) => q.shift()).filter((p): p is Property => !!p).sort(byRating);
+    out.push(...heads.slice(0, n - out.length));
+  }
+  if (out.length < n) {
+    const taken = new Set(out.map((p) => p.id));
+    out.push(...sortProperties(items.filter((p) => !taken.has(p.id)), "newest").slice(0, n - out.length));
+  }
+  return out;
+}

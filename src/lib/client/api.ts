@@ -11,6 +11,7 @@ import type {
   MyRatingListItem,
   MyRatingResponse,
   OwnerListingsResponse,
+  FeaturedStay,
   OwnerSettingsUpdate,
   ProfileUpdate,
   PropertyDetail,
@@ -71,6 +72,7 @@ export const api = {
   search: (f: SearchFilters) => request<SearchResponse>("GET", `/api/properties?${serializeFilters(f)}`),
   suggestions: (q: string, city: string) =>
     request<{ items: Suggestion[] }>("GET", `/api/properties/suggestions?q=${enc(q)}&city=${enc(city)}`),
+  featured: (city: string) => request<{ items: FeaturedStay[] }>("GET", `/api/properties/featured?city=${enc(city)}`),
   property: (id: string) => request<PropertyDetail>("GET", `/api/properties/${enc(id)}`),
   recordView: (id: string, deviceId: string) =>
     request<{ counted: boolean }>("POST", `/api/properties/${enc(id)}/views`, { deviceId }),

@@ -9,6 +9,7 @@ import type {
   Amenity,
   Furnishing,
   Gender,
+  Photo,
   Property,
   PropertyType,
   Rating,
@@ -20,6 +21,39 @@ import { emptySummary } from "@/lib/domain/rating";
 import type { Repositories } from "../repositories/types";
 
 const OWNER_ID = "demo-owner-rahul";
+
+/**
+ * Bundled CC0 demo photos (public/demo/photos, sources in CREDITS.txt).
+ * Served as static files, so they work with every storage backend.
+ */
+const DEMO_PHOTOS: Record<string, string[]> = {
+  "Single Sharing PG": ["hostel-single-room", "hostel-twin-room", "pg-common-room"],
+  "2 BHK Flat": ["flat-kitchen-living", "flat-open-plan-2", "flat-kitchen", "flat-hallway"],
+  "Double Sharing Room": ["room-wardrobe", "studio-room", "flat-hallway"],
+  "Girls Hostel, 3 Sharing": ["hostel-bunk-room", "pg-common-room", "apartment-building"],
+  "Double Sharing PG": ["hostel-twin-room", "hostel-bunk-room", "pg-common-room"],
+  "Executive PG, Single": ["pg-common-room", "hotel-style-room", "apartment-building"],
+  "Single PG with AC": ["hotel-style-room", "hostel-single-room", "apartment-building"],
+  "1 RK near Hitech City": ["studio-room", "flat-kitchen-2", "flat-hallway"],
+  "3 BHK Family Flat": ["flat-living-room", "flat-open-plan", "flat-kitchen", "flat-open-plan-2"],
+};
+
+export function demoPhotos(title: string): Photo[] {
+  return (DEMO_PHOTOS[title] ?? []).map((name) => ({ url: `/demo/photos/${name}.jpg`, path: `demo/photos/${name}.jpg` }));
+}
+
+/** Adds bundled photos to demo listings that don't have any yet. Returns how many were updated. */
+export async function backfillDemoPhotos(repos: Repositories): Promise<number> {
+  const listings = await repos.properties.listByOwner(OWNER_ID);
+  let updated = 0;
+  for (const p of listings) {
+    const photos = demoPhotos(p.title);
+    if (p.photos.length || !photos.length) continue;
+    await repos.properties.update(p.id, { photos });
+    updated++;
+  }
+  return updated;
+}
 
 interface Seed {
   title: string;
@@ -46,7 +80,7 @@ const SEEDS: Seed[] = [
   { title: "Double Sharing PG", type: "pg", sharing: "2_sharing", rent: 6500, deposit: 6500, locality: "Gachibowli", gender: "male", furnishing: "furnished", food: true, amenities: ["ac"], availableInDays: 6, publishedDaysAgo: 4, ratings: [[4, 4, 4, 4, 4], [4, 4, 4, 4, 4], [4, 4, 4, 4, 4]], description: "AC rooms, washing machine, RO water and meals included." },
   { title: "Executive PG, Single", type: "pg", sharing: "1_sharing", rent: 9500, deposit: 10000, locality: "Gachibowli", gender: "male", furnishing: "furnished", food: true, amenities: ["wifi", "parking"], availableInDays: 0, publishedDaysAgo: 2, ratings: [], description: "Premium single rooms near DLF with gym access and housekeeping." },
   { title: "Single PG with AC", type: "pg", sharing: "1_sharing", rent: 9000, deposit: 9000, locality: "Gachibowli", gender: "anyone", furnishing: "furnished", food: true, amenities: ["wifi", "ac", "attached_bath"], availableInDays: 0, publishedDaysAgo: 5, ratings: [[5, 4, 4, 5, 4], [4, 5, 5, 4, 4], [5, 4, 4, 4, 5]], description: "Co-living PG with AC rooms, attached bathrooms and a rooftop lounge." },
-  { title: "1 RK near Hitech City", type: "room", sharing: "1rk", rent: 9000, deposit: 18000, locality: "Hitech City", gender: "anyone", furnishing: "semi", food: false, amenities: ["wifi", "parking"], availableInDays: 0, publishedDaysAgo: 6, ratings: [], description: "Independent 1 RK with a kitchenette, 10 minutes walk to Mindspace." },
+  { title: "1 RK near Hitech City", type: "room", sharing: "1rk", rent: 9000, deposit: 18000, locality: "Hitech City", gender: "anyone", furnishing: "semi", food: false, amenities: ["wifi", "parking"], availableInDays: 0, publishedDaysAgo: 6, ratings: [[5, 4, 5, 4, null], [4, 5, 4, 4, null], [5, 4, 4, 5, null]], description: "Independent 1 RK with a kitchenette, 10 minutes walk to Mindspace." },
   { title: "3 BHK Family Flat", type: "flat", sharing: "3bhk", rent: 32000, deposit: 100000, locality: "Madhapur", gender: "anyone", furnishing: "furnished", food: false, amenities: ["ac", "parking", "attached_bath"], availableInDays: 10, publishedDaysAgo: 7, ratings: [[5, 5, 5, 4, null], [4, 5, 5, 4, null], [5, 4, 4, 4, null]], description: "Gated community with pool and clubhouse. Fully furnished with appliances." },
 ];
 
@@ -92,7 +126,7 @@ export async function seedDemoData(repos: Repositories, now = new Date()): Promi
       rent: s.rent,
       deposit: s.deposit,
       location: { city: "Hyderabad", locality: s.locality, address: "", geo: null },
-      photos: [],
+      photos: demoPhotos(s.title),
       availableFor: s.gender,
       contact: { phone: owner.phone!, whatsapp: null },
       furnishing: s.furnishing,

@@ -2,7 +2,9 @@
 
 import { Heart, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { useSaved } from "@/hooks/use-saved";
+import { PhotoSlider } from "@/components/property/photo-slider";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RatingPill, Tag } from "@/components/ui/primitives";
 import { cx } from "@/lib/client/cx";
@@ -56,22 +58,35 @@ function Rent({ rent, size = "md" }: { rent: number; size?: "md" | "lg" }) {
 /** Grid card used on web home, results and mobile results. */
 export function PropertyCard({ p, imageHeight = "h-[180px]" }: { p: Card; imageHeight?: string }) {
   const avail = availabilityLabel(p.availableFrom ? new Date(p.availableFrom) : null);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <Link
       href={`/properties/${p.id}`}
+      draggable={false}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+      }}
       className="group flex flex-col overflow-hidden rounded-[20px] border border-line bg-white text-ink shadow-[var(--shadow-card)] transition-shadow hover:text-ink hover:shadow-[var(--shadow-pop)]"
     >
       <div className={cx("relative", imageHeight)}>
-        <PropertyImage src={p.coverUrl} alt={p.title} seed={p.id} className="size-full" />
-        <span
-          className={cx(
-            "absolute top-3 left-3 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-extrabold",
-            avail === "Available now" ? "text-ok" : "text-warn",
-          )}
-        >
+        <PhotoSlider photos={p.photos} alt={p.title} seed={p.id} className="size-full" playing={hovered || focused} />
+        {/* Info, not an action: flat translucent label with a status dot */}
+        <span className="pointer-events-none absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-ink/55 py-1 pr-2.5 pl-2 text-[11px] leading-none font-semibold text-white backdrop-blur-sm">
+          <span
+            aria-hidden
+            className={cx("size-1.5 rounded-full", avail === "Available now" ? "bg-emerald-400" : "bg-amber-400")}
+          />
           {avail}
         </span>
-        <SaveButton id={p.id} className="absolute top-2.5 right-2.5" />
+        {/* Action: solid round button that reacts to hover and press */}
+        <SaveButton
+          id={p.id}
+          className="absolute top-2.5 right-2.5 size-8 transition-transform hover:scale-110 [&_svg]:size-4"
+        />
       </div>
       <div className="flex flex-col gap-1.5 px-4 pt-3.5 pb-4">
         <div className="flex items-start justify-between gap-2">

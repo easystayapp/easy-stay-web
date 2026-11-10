@@ -125,6 +125,15 @@
   }
 }
 
+@keyframes es-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
 @layer components {
   .container-page {
     @apply mx-auto w-full max-w-[1240px] px-4 sm:px-6;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Bell, Plus, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -80,17 +80,13 @@ export function SiteHeader() {
               Find a stay
             </Link>
           )}
-          {ownerOn ? (
+          {ownerOn && (
             <Link
               href="/my-listings"
               aria-current={pathname.startsWith("/my-listings") ? "page" : undefined}
               className={navLink(pathname.startsWith("/my-listings"))}
             >
               My listings
-            </Link>
-          ) : (
-            <Link href="/owner" className={navLink(pathname.startsWith("/owner"))}>
-              List your property
             </Link>
           )}
           <Link href="/saved" className={navLink(pathname === "/saved")}>
@@ -120,10 +116,21 @@ export function SiteHeader() {
               )}
             </Link>
           ) : (
-            <ButtonLink href={`/login?next=${encodeURIComponent(pathname)}`} size="sm" className="h-11 rounded-xl px-5">
+            <ButtonLink href={`/login?next=${encodeURIComponent(pathname)}`} variant="outline" size="sm" className="h-11 rounded-xl px-5">
               Log in
             </ButtonLink>
           )}
+          {/* Primary call to action, always last in the header */}
+          <ButtonLink
+            href={ownerOn ? "/my-listings/new" : "/owner"}
+            size="sm"
+            aria-label="List property"
+            className="ml-1 h-11 gap-1.5 rounded-xl px-4 font-bold shadow-[0_6px_16px_rgba(214,40,67,0.28)] sm:px-5"
+          >
+            <Plus aria-hidden className="size-[18px]" strokeWidth={2.5} />
+            <span className="max-sm:hidden">List property</span>
+            <span aria-hidden className="sm:hidden">List</span>
+          </ButtonLink>
         </div>
       </div>
     </header>

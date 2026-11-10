@@ -75,7 +75,7 @@ export function MultiSelect<T extends string>({
           <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-primary" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-56 rounded-[14px] p-1">
+      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-56 p-1.5">
         <Command>
           {searchable && <CommandInput placeholder={`Search ${label.toLowerCase()}`} />}
           <CommandList>

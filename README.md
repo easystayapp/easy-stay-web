@@ -18,7 +18,7 @@ Built from the **EasyStay App Design** canvas (brand & UI kit, 24 mobile screens
 npm install
 cp .env.example .env.local          # or use the emulator values below
 npx firebase-tools emulators:start --only auth,firestore --project demo-easystay
-npm run seed                        # 9 demo listings in Hyderabad
+npm run seed                        # 9 demo listings in Hyderabad, with photos
 npm run dev
 ```
 
@@ -38,6 +38,8 @@ STORAGE_BACKEND=memory              # until R2 is configured
 
 Phone OTP codes from the Auth emulator are shown in its UI (http://127.0.0.1:4000/auth) or at
 `/emulator/v1/projects/demo-easystay/verificationCodes`.
+
+Demo listings use bundled CC0 photos from Wikimedia Commons (`public/demo/photos`, sources in `CREDITS.txt`). Re-running `npm run seed` adds them to existing demo listings that have none.
 
 No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (browsing works; logging in still needs Firebase Auth).
 

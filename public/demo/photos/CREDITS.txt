@@ -1,0 +1,17 @@
+Demo listing photos from Wikimedia Commons, all CC0 (public domain dedication; no attribution required).
+
+hostel-bunk-room.jpg — Hostel Room Inside at UAiU.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Hostel_Room_Inside_at_UAiU.jpg
+hostel-twin-room.jpg — Twin room in a German youth hostel with single beds and wardrobe A.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Twin_room_in_a_German_youth_hostel_with_single_beds_and_wardrobe_A.jpg
+hostel-single-room.jpg — Twin room in a German youth hostel with single beds and wardrobe B.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Twin_room_in_a_German_youth_hostel_with_single_beds_and_wardrobe_B.jpg
+pg-common-room.jpg — Hostel Room Common Area.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Hostel_Room_Common_Area.jpg
+hotel-style-room.jpg — Hotel room in Paris, France, with metal-sphere-lamp with reflections of photographer, 2013.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Hotel_room_in_Paris,_France,_with_metal-sphere-lamp_with_reflections_of_photographer,_2013.jpg
+studio-room.jpg — Airbnb apartment in Caen 2025-03-23.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Airbnb_apartment_in_Caen_2025-03-23.jpg
+room-wardrobe.jpg — Дом Шрёдер - комната сына (слева) и дочерей (справа).jpg — CC0 — https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC_%D0%A8%D1%80%D1%91%D0%B4%D0%B5%D1%80_-_%D0%BA%D0%BE%D0%BC%D0%BD%D0%B0%D1%82%D0%B0_%D1%81%D1%8B%D0%BD%D0%B0_(%D1%81%D0%BB%D0%B5%D0%B2%D0%B0)_%D0%B8_%D0%B4%D0%BE%D1%87%D0%B5%D1%80%D0%B5%D0%B9_(%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%B0).jpg
+flat-living-room.jpg — Living room in apartment of Condomínio do Edifício Zaher, Le Blond, Rio de Janeiro, Brazil.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Living_room_in_apartment_of_Condom%C3%ADnio_do_Edif%C3%ADcio_Zaher,_Le_Blond,_Rio_de_Janeiro,_Brazil.jpg
+flat-kitchen.jpg — Apartment Kitchen in Washington, DC.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Apartment_Kitchen_in_Washington,_DC.jpg
+flat-kitchen-2.jpg — Babcock Theatre Building, Apartment Kitchen, Billings MT, 2026.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Babcock_Theatre_Building,_Apartment_Kitchen,_Billings_MT,_2026.jpg
+flat-open-plan.jpg — Empty apartment in Berlin with fitted kitchen, chair and plant.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Empty_apartment_in_Berlin_with_fitted_kitchen,_chair_and_plant.jpg
+flat-open-plan-2.jpg — Empty apartment in Berlin with fitted kitchen and chair.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Empty_apartment_in_Berlin_with_fitted_kitchen_and_chair.jpg
+flat-kitchen-living.jpg — Empty apartment in Berlin with fitted kitchen and chair 2.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Empty_apartment_in_Berlin_with_fitted_kitchen_and_chair_2.jpg
+flat-hallway.jpg — Empty apartment in Berlin with fitted kitchen and chair 3.jpg — CC0 — https://commons.wikimedia.org/wiki/File:Empty_apartment_in_Berlin_with_fitted_kitchen_and_chair_3.jpg
+apartment-building.jpg — Studio Apartment, XIMB Campus.JPG — CC0 — https://commons.wikimedia.org/wiki/File:Studio_Apartment,_XIMB_Campus.JPG
