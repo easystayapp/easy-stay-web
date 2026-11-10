@@ -12,7 +12,7 @@
 import { seedDemoData } from "../seed/demo";
 import { createFirestoreRepositories } from "./firestore";
 import { createMemoryFileStorage, createMemoryRepositories, memoryStore } from "./memory";
-import { createR2FileStorage, r2Configured, r2PrivateConfigured } from "./r2";
+import { createR2FileStorage, r2Configured } from "./r2";
 import type { FileStorage, Repositories } from "./types";
 
 export type { BatchOp, DocStore, FileStorage, Repositories } from "./types";
@@ -65,15 +65,15 @@ export function getFileStorage(): FileStorage {
 }
 
 /**
- * Private document storage (KYC, NOCs). Needs its own non-public bucket
- * (R2_PRIVATE_BUCKET); production refuses to fall back to anything public.
+ * KYC / NOC document storage: the `owners-kyc-docs/` folder of the main R2 bucket,
+ * accessed with no public URL and signed reads only. Production requires R2.
  */
 export function getPrivateStorage(): FileStorage {
   if (!g.__easyStayPrivate) {
-    if (r2PrivateConfigured() && storageBackend() === "r2") {
+    if (storageBackend() === "r2") {
       g.__easyStayPrivate = createR2FileStorage({ private: true });
     } else if (process.env.NODE_ENV === "production") {
-      throw new Error("R2_PRIVATE_BUCKET is not set: verification documents need a private bucket.");
+      throw new Error("Cloudflare R2 (R2_*) must be configured to store verification documents.");
     } else {
       g.__easyStayPrivate = createMemoryFileStorage();
     }

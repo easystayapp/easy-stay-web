@@ -1,11 +1,12 @@
 /** DPDP: consent toggles, data export, account deletion. In-app notification list lives here too. */
 import { getAuth } from "firebase-admin/auth";
 import { DomainError } from "@/lib/domain/errors";
-import { PATHS, dataBackend, type Repositories } from "../../repositories";
-import type { AppNotification, Case, Enquiry, Message } from "@/lib/domain/ops";
+import { PATHS, dataBackend, getPrivateStorage, type Repositories } from "../../repositories";
+import type { AppNotification, Case, Enquiry, Message, Verification } from "@/lib/domain/ops";
 import type { AuthUser } from "../../auth";
 import { getAdminApp } from "../../firebase-admin";
 import { getMeta, patchMeta } from "./guard";
+import { docPrefix } from "./verification";
 
 export async function getConsents(repos: Repositories, auth: AuthUser) {
   return (await getMeta(repos, auth.uid)).consents;
@@ -67,6 +68,14 @@ export async function deleteMyAccount(repos: Repositories, auth: AuthUser, body:
   );
   for (const n of await repos.docs<AppNotification>(PATHS.notifications).query({ where: [["userId", "==", uid]], limit: 500 })) {
     await repos.docs(PATHS.notifications).delete(n.id);
+  }
+  // Remove the owner's KYC / NOC files and review records.
+  const vers = repos.docs<Verification>(PATHS.verifications);
+  for (const v of await vers.query({ where: [["ownerId", "==", uid]], limit: 200 })) {
+    // Only ever delete keys inside this owner's own KYC folder.
+    const own = v.files.filter((f) => f.startsWith(docPrefix(uid)) && !f.includes(".."));
+    await Promise.allSettled(own.map((f) => getPrivateStorage().delete(f)));
+    await vers.delete(v.id);
   }
   await repos.docs(PATHS.userMeta).delete(uid);
   await repos.users.update(uid, { displayName: "Deleted user", email: null, phone: null, photoUrl: null, owner: null, updatedAt: new Date() });

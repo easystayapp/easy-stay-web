@@ -25,10 +25,11 @@ const verStore = (r: Repositories) => r.docs<Verification>(PATHS.verifications);
 
 /* ------------------------------------------------------------------ owner */
 
-/** Private, owner-scoped prefix. Never served publicly; only admins get signed access. */
-export const docPrefix = (uid: string) => `verification/${uid}/`;
+/** Folder for KYC / NOC documents in the bucket. Never linked publicly; admins get signed URLs. */
+export const KYC_FOLDER = "owners-kyc-docs/";
+export const docPrefix = (uid: string) => `${KYC_FOLDER}${uid}/`;
 
-/** Direct-to-storage upload ticket for a verification document (private bucket). */
+/** Direct-to-storage upload ticket for a verification document (owners-kyc-docs/ folder). */
 export async function createDocUploadTicket(repos: Repositories, auth: AuthUser, body: { contentType?: unknown; size?: unknown }) {
   await assertActive(repos, auth);
   const type = typeof body.contentType === "string" ? body.contentType : "";

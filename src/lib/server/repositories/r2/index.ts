@@ -40,15 +40,14 @@ export function r2Configured(): boolean {
   return !!(bucketName() && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 }
 
-export const r2PrivateConfigured = () => !!process.env.R2_PRIVATE_BUCKET && r2Configured();
-
 /**
- * `private: true` targets R2_PRIVATE_BUCKET (KYC / NOC documents): no public URL,
- * no-store caching, and reads only through short-lived signed URLs.
+ * `private: true` is for KYC / NOC documents (folder `owners-kyc-docs/` of the same
+ * bucket): the app never builds a public URL for them, sends no-store caching, and
+ * reads them only through short-lived signed URLs.
  */
 export function createR2FileStorage(opts: { private?: boolean } = {}): FileStorage {
   const isPrivate = !!opts.private;
-  const bucket = isPrivate ? required("R2_PRIVATE_BUCKET") : required("R2_BUCKET");
+  const bucket = required("R2_BUCKET");
   const publicBase = isPrivate ? "" : required("R2_PUBLIC_URL").replace(/\/+$/, "");
   const CACHE_CONTROL = isPrivate ? "private, no-store" : PUBLIC_CACHE_CONTROL;
   const endpoint = process.env.R2_ENDPOINT || `https://${required("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`;
