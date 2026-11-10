@@ -26,14 +26,17 @@ import type { FileStorage } from "../types";
 const CACHE_CONTROL = "public, max-age=31536000, immutable";
 const PRESIGN_SECONDS = 300;
 
+/** Bucket name; R2_BUCKET_NAME (Cloudflare's guide) is accepted as an alias. */
+const bucketName = () => process.env.R2_BUCKET || process.env.R2_BUCKET_NAME;
+
 function required(name: string): string {
-  const v = process.env[name];
+  const v = name === "R2_BUCKET" ? bucketName() : process.env[name];
   if (!v) throw new Error(`${name} is not set. Configure Cloudflare R2 in .env.local (see .env.example).`);
   return v;
 }
 
 export function r2Configured(): boolean {
-  return !!(process.env.R2_BUCKET && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
+  return !!(bucketName() && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 }
 
 export function createR2FileStorage(): FileStorage {

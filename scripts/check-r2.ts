@@ -61,7 +61,7 @@ async function checkCors() {
   });
   const origins = (process.env.CHECK_ORIGINS ?? "http://localhost:3000,http://localhost:3002").split(",");
   try {
-    const { CORSRules = [] } = await client.send(new GetBucketCorsCommand({ Bucket: process.env.R2_BUCKET }));
+    const { CORSRules = [] } = await client.send(new GetBucketCorsCommand({ Bucket: process.env.R2_BUCKET || process.env.R2_BUCKET_NAME }));
     for (const origin of origins) {
       const allowed = CORSRules.some(
         (r) =>
