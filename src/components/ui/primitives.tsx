@@ -23,7 +23,7 @@ export function Chip({
       aria-pressed={selected}
       className={cx(
         "inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] transition-colors",
-        selected ? "bg-brand font-bold text-white" : "bg-blush font-semibold text-brand-dark hover:bg-blush-2",
+        selected ? "bg-brand font-bold text-white" : "bg-tag-bg font-semibold text-tag-dark hover:bg-tag-bg-hover",
         className,
       )}
       {...rest}
@@ -35,7 +35,17 @@ export function Chip({
 
 export function Tag({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cx("inline-flex items-center rounded-md bg-blush px-2 py-1 text-[11px] font-bold text-brand-dark", className)}>
+    <span className={cx("inline-flex items-center rounded-md bg-tag-bg px-2 py-1 text-[11px] font-bold text-tag-dark", className)}>
+      {children}
+    </span>
+  );
+}
+
+/** Small rounded label on the tag colour: roles, counts, categories. */
+export function Pill({ children, icon, className }: { children: ReactNode; icon?: ReactNode; className?: string }) {
+  return (
+    <span className={cx("inline-flex items-center gap-1 rounded-full bg-tag-bg px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-tag-dark uppercase", className)}>
+      {icon}
       {children}
     </span>
   );

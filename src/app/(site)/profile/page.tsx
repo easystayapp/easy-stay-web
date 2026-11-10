@@ -29,7 +29,7 @@ function Row({ href, icon: Icon, label, hint, badge }: { href: string; icon: Luc
         <span className="text-[15px] font-semibold">{label}</span>
         {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       </span>
-      {badge ? <span className="rounded-full bg-blush px-2.5 py-0.5 text-xs font-extrabold text-brand-dark">{badge}</span> : null}
+      {badge ? <span className="rounded-full bg-tag-bg px-2.5 py-0.5 text-xs font-extrabold text-tag-dark">{badge}</span> : null}
       <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
     </Link>
   );

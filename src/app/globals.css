@@ -37,6 +37,14 @@
   --color-pause: #4f4a50;
   --color-pause-bg: #f1eeef;
 
+  /* Tag family: badges, pills and chips (role badges, filter chips, counts, tags).
+     Change these four values to re-colour all of them at once. */
+  --color-tag: #6d3fc0; /* icon / accent */
+  --color-tag-dark: #4c2a9e; /* text */
+  --color-tag-bg: #f1ebff; /* fill */
+  --color-tag-bg-hover: #e4d9fc;
+  --color-tag-line: #d9c9f8; /* border */
+
   --color-tint-1: #fbe3e6;
   --color-tint-2: #f6eae0;
   --color-tint-3: #e9eef4;

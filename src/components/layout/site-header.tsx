@@ -1,13 +1,13 @@
 "use client";
 
-import { Heart, House, Plus } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { ButtonLink } from "@/components/ui/button";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { Avatar } from "@/components/ui/primitives";
+import { Avatar, Pill } from "@/components/ui/primitives";
 import { cx } from "@/lib/client/cx";
 
 export function Logo({ compact }: { compact?: boolean }) {
@@ -68,20 +68,15 @@ export function SiteHeader() {
                 {ownerOn && (
                   <span
                     aria-hidden
-                    className="absolute -right-1 -bottom-1 flex size-[18px] items-center justify-center rounded-full border-2 border-white bg-brand text-white lg:hidden"
-                  >
-                    <House className="size-2.5" strokeWidth={3} />
-                  </span>
+                    className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-white bg-tag lg:hidden"
+                  />
                 )}
               </span>
               {me?.displayName && (
                 <span className="hidden flex-col items-start gap-0.5 leading-tight lg:flex">
                   <span className="text-sm font-bold">{me.displayName.split(" ")[0]}</span>
                   {ownerOn && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blush px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-brand-dark uppercase">
-                      <House aria-hidden className="size-2.5" strokeWidth={3} />
-                      Owner
-                    </span>
+                    <Pill>Owner</Pill>
                   )}
                 </span>
               )}

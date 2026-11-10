@@ -113,7 +113,7 @@ function ResultsView() {
               type="button"
               onClick={c.remove}
               aria-label={`Remove filter ${c.label}`}
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-blush px-3.5 text-[13px] font-semibold text-brand-dark hover:bg-blush-2"
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-tag-bg px-3.5 text-[13px] font-semibold text-tag-dark hover:bg-tag-bg-hover"
             >
               {c.label}
               <X aria-hidden className="size-3.5" />
