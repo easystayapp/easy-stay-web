@@ -53,6 +53,7 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
 | `npm run check:firebase` | Verifies the live Firebase setup: config, API key, sign-in providers, service account, Firestore read/write |
 | `npm run deploy:firestore` | Deploys `firestore.rules` and `firestore.indexes.json` to the project in `.env.local` |
 | `npm run check:r2` | Verifies Cloudflare R2: presigned upload, public URL, stat, delete, CORS |
+| `npm run vercel:env` | Copies settings from `.env.local` + `service-account.json` to the linked Vercel project (`--dry-run`, `--target=preview`, `--public-url=…`) |
 
 ## Production setup
 
@@ -84,6 +85,21 @@ The `.env.local` template walks through every value. To go back to the emulators
    ]
    ```
 5. `npm run check:r2` should print “Cloudflare R2 is configured correctly.”
+
+## Deploying to Vercel
+
+Server functions run in **Mumbai (`bom1`, see `vercel.json`)**, next to the Firestore database in `asia-south1`.
+
+1. `npx vercel login`, then `npx vercel link` in this folder (creates the project; `.vercel/` is git-ignored).
+2. `npm run vercel:env` copies the 14 production settings. The service-account file is sent as `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`, since Vercel has no key file. Use `--public-url=https://media.yourdomain.com` once the R2 custom domain is connected.
+3. Deploy: `npx vercel deploy --prod`, or connect the GitHub repo in Vercel (Settings → Git) for automatic deploys from the production branch.
+4. Allow the production domain everywhere it's checked:
+   - Firebase → Authentication → Settings → Authorized domains: add `your-app.vercel.app` and your custom domain.
+   - R2 bucket CORS: add `https://your-app.vercel.app` and your custom domain to `AllowedOrigins`.
+   - Google Cloud → OAuth consent screen: app name, support email, then **Publish**.
+5. Verify: `CHECK_ORIGINS=https://your-app.vercel.app npm run check:r2`, then sign in, turn on owner tools and add a listing with photos on the live site.
+
+Before real users: give R2 a custom domain (r2.dev is rate-limited), use an R2 token scoped to the one bucket, and rotate any key that has been shared.
 
 ## Project structure
 
