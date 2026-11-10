@@ -1,14 +1,16 @@
 "use client";
 
-import { MapPin, TrendingUp } from "lucide-react";
+import { BedDouble, Building2, House, MapPin, TrendingUp } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { useCatalog } from "@/hooks/use-catalog";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/domain/search";
+import type { PropertyType } from "@/lib/domain/types";
 
-const MAX_OPTIONS = 7;
+const MAX_AREAS = 7;
 
-interface Option {
+interface AreaOption {
+  kind: "area";
   /** Short area name put into the search box ("Gachibowli"). */
   area: string;
   /** Extra detail from the catalog name ("Telecom Nagar, Jayabheri Pine Valley"). */
@@ -16,17 +18,35 @@ interface Option {
   popular: boolean;
 }
 
+/** "PGs in Gachibowli": the area plus a property-type filter. */
+interface TypeOption {
+  kind: "type";
+  area: string;
+  type: PropertyType;
+}
+
+type Option = AreaOption | TypeOption;
+
+/** What the user picked: the search text and, for a shortcut, a property type. */
+export interface LocalitySelection {
+  q: string;
+  type: PropertyType | null;
+}
+
+const TYPE_NOUN: Record<PropertyType, string> = { pg: "PGs", room: "Rooms", flat: "Flats" };
+const TYPE_ICON = { pg: Building2, room: BedDouble, flat: House } as const;
+
 /** "Gachibowli (Telecom Nagar, …)" → area "Gachibowli", detail "Telecom Nagar, …". */
-function split(name: string): Pick<Option, "area" | "detail"> {
+function split(name: string): Pick<AreaOption, "area" | "detail"> {
   const m = /^(.*?)\s*\((.*)\)\s*$/.exec(name);
   return m ? { area: m[1], detail: m[2] } : { area: name, detail: null };
 }
 
-function optionsFor(localities: string[], popular: string[], query: string): Option[] {
+function areasFor(localities: string[], popular: string[], query: string, max: number): AreaOption[] {
   // Popular areas first; a catalog entry for the same area adds its detail.
-  const byArea = new Map<string, Option>();
+  const byArea = new Map<string, AreaOption>();
   for (const [name, isPopular] of [...popular.map((n) => [n, true] as const), ...localities.map((n) => [n, false] as const)]) {
-    const o = { ...split(name), popular: isPopular };
+    const o: AreaOption = { kind: "area", ...split(name), popular: isPopular };
     const key = o.area.toLowerCase();
     const existing = byArea.get(key);
     if (!existing) byArea.set(key, o);
@@ -34,10 +54,10 @@ function optionsFor(localities: string[], popular: string[], query: string): Opt
   }
   const all = [...byArea.values()];
   const q = query.trim().toLowerCase();
-  if (!q) return all.filter((o) => o.popular).slice(0, MAX_OPTIONS);
+  if (!q) return all.filter((o) => o.popular).slice(0, max);
 
   const tokens = normalizeText(q);
-  const rank = (o: Option) => {
+  const rank = (o: AreaOption) => {
     const text = `${o.area} ${o.detail ?? ""}`;
     if (o.area.toLowerCase().startsWith(q)) return 0;
     const words = normalizeText(text);
@@ -47,8 +67,19 @@ function optionsFor(localities: string[], popular: string[], query: string): Opt
     .map((o) => ({ o, r: rank(o) }))
     .filter((x) => x.r >= 0)
     .sort((a, b) => a.r - b.r || Number(b.o.popular) - Number(a.o.popular))
-    .slice(0, MAX_OPTIONS)
+    .slice(0, max)
     .map((x) => x.o);
+}
+
+/**
+ * Areas, then "PGs / Rooms / Flats in <best area>" shortcuts. Types already
+ * selected in the current search come first.
+ */
+function optionsFor(localities: string[], popular: string[], query: string, shortcuts: PropertyType[] | null): Option[] {
+  if (!shortcuts || !query.trim()) return areasFor(localities, popular, query, MAX_AREAS);
+  const areas = areasFor(localities, popular, query, 4);
+  const top = areas[0];
+  return top ? [...areas, ...shortcuts.map<TypeOption>((type) => ({ kind: "type", area: top.area, type }))] : areas;
 }
 
 /** Bolds the part of `text` that starts with the typed query. */
@@ -75,15 +106,31 @@ export function LocalityCombobox({
   city,
   value,
   onChange,
+  onSelect,
+  typeShortcuts,
+  placeholder,
+  ariaLabel,
   className,
   inputClassName,
+  listClassName,
+  inputSlot,
 }: {
   id: string;
   city: string;
   value: string;
   onChange: (value: string) => void;
+  /** Called after a pick (the box already holds the area). Use it to search right away. */
+  onSelect?: (selection: LocalitySelection) => void;
+  /** Offer "PGs / Rooms / Flats in <area>" shortcuts, in this order. */
+  typeShortcuts?: PropertyType[];
+  placeholder?: string;
+  ariaLabel?: string;
   className?: string;
   inputClassName?: string;
+  /** Positions the dropdown relative to the field's container. */
+  listClassName?: string;
+  /** `data-slot` for the input, e.g. "input-group-control" inside an InputGroup. */
+  inputSlot?: string;
 }) {
   const { cities } = useCatalog();
   const listId = useId();
@@ -92,8 +139,8 @@ export function LocalityCombobox({
 
   const current = cities.find((c) => c.label === city);
   const options = useMemo(
-    () => optionsFor(current?.localities ?? [], current?.popular ?? [], value),
-    [current, value],
+    () => optionsFor(current?.localities ?? [], current?.popular ?? [], value, typeShortcuts ?? null),
+    [current, value, typeShortcuts],
   );
   const showList = open && options.length > 0;
   const optionId = (i: number) => `${listId}-opt-${i}`;
@@ -102,6 +149,7 @@ export function LocalityCombobox({
     onChange(o.area);
     setOpen(false);
     setActive(-1);
+    onSelect?.({ q: o.area, type: o.kind === "type" ? o.type : null });
   };
 
   return (
@@ -110,6 +158,8 @@ export function LocalityCombobox({
         id={id}
         type="text"
         role="combobox"
+        data-slot={inputSlot}
+        aria-label={ariaLabel}
         aria-autocomplete="list"
         aria-expanded={showList}
         aria-controls={listId}
@@ -117,7 +167,7 @@ export function LocalityCombobox({
         autoComplete="off"
         spellCheck={false}
         value={value}
-        placeholder={`Area in ${city}`}
+        placeholder={placeholder ?? `Area in ${city}`}
         onChange={(e) => {
           onChange(e.target.value);
           setOpen(true);
@@ -150,37 +200,54 @@ export function LocalityCombobox({
           aria-label={`Areas in ${city}`}
           // Keep focus in the input while clicking an option.
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute top-[calc(100%+14px)] -left-3.5 z-50 flex w-[calc(100%+28px)] min-w-[260px] flex-col gap-0.5 rounded-2xl border border-border bg-white p-1.5 shadow-[var(--shadow-sheet)] animate-in fade-in-0 zoom-in-95 duration-150"
+          className={cn(
+            "absolute top-[calc(100%+14px)] -left-3.5 z-50 flex w-[calc(100%+28px)] min-w-[260px] flex-col gap-0.5 rounded-2xl border border-border bg-white p-1.5 shadow-[var(--shadow-sheet)] animate-in fade-in-0 zoom-in-95 duration-150",
+            listClassName,
+          )}
         >
           {!value.trim() && (
             <li role="presentation" className="px-3 pt-1.5 pb-1 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               Popular in {city}
             </li>
           )}
-          {options.map((o, i) => (
-            <li
-              key={o.area}
-              id={optionId(i)}
-              role="option"
-              aria-selected={i === active}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => pick(o)}
-              className={cn(
-                "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 py-2 text-sm text-ink",
-                i === active && "bg-blush",
-              )}
-            >
-              <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
-                {o.popular ? <TrendingUp aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate font-semibold">
-                  <Highlight text={o.area} query={value} />
+          {options.map((o, i) => {
+            const Icon = o.kind === "type" ? TYPE_ICON[o.type] : o.popular ? TrendingUp : MapPin;
+            const firstShortcut = o.kind === "type" && options[i - 1]?.kind !== "type";
+            return (
+              <li
+                key={o.kind === "type" ? `type-${o.type}` : o.area}
+                id={optionId(i)}
+                role="option"
+                aria-selected={i === active}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => pick(o)}
+                className={cn(
+                  "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 py-2 text-sm text-ink",
+                  i === active && "bg-blush",
+                  firstShortcut && "mt-1 border-t border-line pt-3",
+                )}
+              >
+                <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
+                  <Icon aria-hidden className="size-4" />
                 </span>
-                <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${city}${o.popular ? " · Popular" : ""}`}</span>
-              </span>
-            </li>
-          ))}
+                {o.kind === "type" ? (
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-semibold">
+                      {TYPE_NOUN[o.type]} in <b className="font-extrabold">{o.area}</b>
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">Property type · {city}</span>
+                  </span>
+                ) : (
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-semibold">
+                      <Highlight text={o.area} query={value} />
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${city}${o.popular ? " · Popular" : ""}`}</span>
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

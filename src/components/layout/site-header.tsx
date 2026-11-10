@@ -8,7 +8,9 @@ import { Suspense, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { LocalityCombobox } from "@/components/search/locality-combobox";
+import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
+import { PROPERTY_TYPES, type PropertyType } from "@/lib/domain/types";
 import { Avatar } from "@/components/ui/primitives";
 import { cx } from "@/lib/client/cx";
 
@@ -23,33 +25,59 @@ export function Logo({ compact }: { compact?: boolean }) {
 
 function HeaderSearch() {
   const params = useSearchParams();
+  // Re-mount when the URL's search text changes so the box always shows the current search.
+  return <HeaderSearchForm key={params.get("q") ?? ""} params={params} />;
+}
+
+function HeaderSearchForm({ params }: { params: URLSearchParams }) {
   const router = useRouter();
-  const { city } = useCity();
+  const { city: savedCity } = useCity();
+  const city = params.get("city") || savedCity;
   const [q, setQ] = useState(params.get("q") ?? "");
+  // Shortcuts follow the current selection: already-filtered types come first.
+  const selected = (params.get("type") ?? "").split(",").filter((t): t is PropertyType => PROPERTY_TYPES.includes(t as PropertyType));
+  const shortcuts = [...selected, ...PROPERTY_TYPES.filter((t) => !selected.includes(t))];
+
+  /** Keeps every other filter; a type shortcut also sets the property type. */
+  const go = (text: string, type: PropertyType | null) => {
+    const next = new URLSearchParams(params);
+    if (text.trim()) next.set("q", text.trim());
+    else next.delete("q");
+    if (type) {
+      next.set("type", type);
+      next.delete("sharing"); // sizes belong to the previous type
+    }
+    if (!next.get("city")) next.set("city", city);
+    next.delete("page");
+    router.push(`/properties?${next}`);
+  };
+
   return (
     <form
       role="search"
       className="order-last w-full md:order-none md:w-auto md:max-w-[420px] md:flex-1"
       onSubmit={(e) => {
         e.preventDefault();
-        const next = new URLSearchParams(params);
-        if (q.trim()) next.set("q", q.trim());
-        else next.delete("q");
-        if (!next.get("city")) next.set("city", city);
-        next.delete("page");
-        router.push(`/properties?${next}`);
+        go(q, null);
       }}
     >
       <InputGroup className="h-11 rounded-xl border-transparent bg-surface">
         <InputGroupAddon>
           <Search aria-hidden className="size-[18px] text-brand" />
         </InputGroupAddon>
-        <InputGroupInput
+        <LocalityCombobox
+          id="header-q"
+          city={city}
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Search area, PG, room or flat"
-          placeholder="Search area, PG, room or flat"
-          className="text-sm"
+          onChange={setQ}
+          onSelect={(sel) => go(sel.q, sel.type)}
+          typeShortcuts={shortcuts}
+          ariaLabel={`Search area, PG, room or flat in ${city}`}
+          placeholder={`Search area, PG, room or flat in ${city}`}
+          inputSlot="input-group-control"
+          className="static flex h-full min-w-0 flex-1 items-center"
+          inputClassName="h-full truncate pr-3 pl-1.5 text-sm"
+          listClassName="top-[calc(100%+8px)] left-0 w-full"
         />
       </InputGroup>
     </form>
