@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BedDouble, Building2, CalendarClock, ChevronDown, House, MapPin, PhoneCall, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
+import { ArrowRight, BedDouble, Building2, CalendarClock, CircleHelp, House, MapPin, PhoneCall, Plus, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -61,6 +61,7 @@ export default function HomePage() {
   const { me } = useAuth();
   const [items, setItems] = useState<Card[] | null>(null);
   const [featured, setFeatured] = useState<FeaturedStay[] | null>(null);
+  const [topRated, setTopRated] = useState<Card[] | null>(null);
   const [q, setQ] = useState("");
   const [type, setType] = useState<PropertyType | "">("");
   const [budget, setBudget] = useState(0);
@@ -75,6 +76,11 @@ export default function HomePage() {
       .search({ ...emptyFilters(city) })
       .then((r) => !cancelled && setItems(r.items.slice(0, 8)))
       .catch(() => !cancelled && setItems([]));
+    api
+      .search({ ...emptyFilters(city), sort: "top_rated" })
+      // Only listings that actually have ratings; best first.
+      .then((r) => !cancelled && setTopRated(r.items.filter((p) => p.rating.count > 0 && (p.rating.average ?? 0) >= 4).slice(0, 4)))
+      .catch(() => !cancelled && setTopRated([]));
     api
       .featured(city)
       .then((r) => !cancelled && setFeatured(r.items))
@@ -233,24 +239,44 @@ export default function HomePage() {
         </div>
       </section>
 
-      {home.highlights.length > 0 && (
-        <section aria-label="Why EasyStay" className="container-page pt-8 md:pt-10">
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {home.highlights.map((h) => {
-              const Icon = HIGHLIGHT_ICON[h.icon] ?? ShieldCheck;
-              return (
-                <li key={h.title} className="flex items-start gap-3.5">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blush text-brand">
-                    <Icon aria-hidden className="size-5" />
-                  </span>
-                  <span className="flex flex-col gap-0.5">
-                    <span className="text-[15px] font-extrabold">{h.title}</span>
-                    <span className="text-[13px] leading-relaxed text-muted-foreground">{h.body}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+      <section className="container-page pt-10 md:pt-12">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Available near {city}</h2>
+          <Link href={href({})} className="text-sm font-bold">
+            See all properties
+          </Link>
+        </div>
+        {items === null ? (
+          <PageSpinner />
+        ) : items.length === 0 ? (
+          <p className="rounded-[20px] bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
+            No listings in {city} yet. Check back soon — or list your own place.
+          </p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+            {items.map((p) => (
+              <PropertyCard key={p.id} p={p} imageHeight="h-[200px]" />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {topRated && topRated.length > 0 && (
+        <section className="container-page pt-12 md:pt-14">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-[22px] font-extrabold tracking-tight md:text-[26px]">
+              <Star aria-hidden className="size-6 fill-current text-brand" />
+              Top rated in {city}
+            </h2>
+            <Link href={href({ sort: "top_rated", minRating: 4 })} className="text-sm font-bold">
+              See all top rated
+            </Link>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+            {topRated.map((p) => (
+              <PropertyCard key={p.id} p={p} imageHeight="h-[200px]" />
+            ))}
+          </div>
         </section>
       )}
 
@@ -273,28 +299,6 @@ export default function HomePage() {
             );
           })}
         </div>
-      </section>
-
-      <section className="container-page pt-12 md:pt-14">
-        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Available near {city}</h2>
-          <Link href={href({})} className="text-sm font-bold">
-            See all properties
-          </Link>
-        </div>
-        {items === null ? (
-          <PageSpinner />
-        ) : items.length === 0 ? (
-          <p className="rounded-[20px] bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
-            No listings in {city} yet. Check back soon — or list your own place.
-          </p>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
-            {items.map((p) => (
-              <PropertyCard key={p.id} p={p} imageHeight="h-[200px]" />
-            ))}
-          </div>
-        )}
       </section>
 
       {cities.length > 1 && (
@@ -335,6 +339,27 @@ export default function HomePage() {
         </section>
       )}
 
+      {home.highlights.length > 0 && (
+        <section aria-label="Why EasyStay" className="container-page pt-14 md:pt-16">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {home.highlights.map((h) => {
+              const Icon = HIGHLIGHT_ICON[h.icon] ?? ShieldCheck;
+              return (
+                <li key={h.title} className="flex items-start gap-3.5">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blush text-brand">
+                    <Icon aria-hidden className="size-5" />
+                  </span>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-[15px] font-extrabold">{h.title}</span>
+                    <span className="text-[13px] leading-relaxed text-muted-foreground">{h.body}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="container-page pt-14 md:pt-16">
         <h2 className="mb-5 text-[22px] font-extrabold tracking-tight md:text-[26px]">How EasyStay works</h2>
         <ol className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
@@ -350,21 +375,36 @@ export default function HomePage() {
 
       {home.faqs.length > 0 && (
         <section className="container-page pt-14 md:pt-16">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,320px)_1fr] lg:gap-14">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Questions, answered</h2>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-16">
+            <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+              <span className="mb-1 flex size-10 items-center justify-center rounded-xl bg-blush text-brand">
+                <CircleHelp aria-hidden className="size-5" />
+              </span>
+              <h2 className="text-[22px] leading-tight font-extrabold tracking-tight md:text-[28px]">Questions, answered</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                More in the <Link href="/help">help centre</Link>.
+                Quick answers about searching, contacting owners and listing a place on EasyStay.
               </p>
+              <Link href="/help" className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-brand hover:text-brand-dark">
+                Visit the help centre
+                <ArrowRight aria-hidden className="size-4" />
+              </Link>
             </div>
-            <div className="flex flex-col divide-y divide-line rounded-[22px] border-[1.5px] border-line">
-              {home.faqs.map((f) => (
-                <details key={f.question} className="group px-5 py-4 [&_summary::-webkit-details-marker]:hidden">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-bold outline-none focus-visible:text-brand">
-                    {f.question}
-                    <ChevronDown aria-hidden className="size-4 shrink-0 text-brand transition-transform group-open:rotate-180" />
+
+            <div className="flex max-w-3xl flex-col gap-2.5">
+              {home.faqs.map((f, i) => (
+                <details
+                  key={f.question}
+                  open={i === 0}
+                  className="group rounded-2xl border border-line bg-white transition-colors open:border-blush-line open:bg-blush/50 hover:border-blush-line [&_summary::-webkit-details-marker]:hidden"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-4 text-left text-[15px] leading-snug font-bold text-ink outline-none focus-visible:ring-3 focus-visible:ring-brand/30">
+                    <span>{f.question}</span>
+                    <Plus
+                      aria-hidden
+                      className="size-5 shrink-0 text-brand transition-transform duration-200 group-open:rotate-45"
+                    />
                   </summary>
-                  <p className="pt-2.5 pr-8 text-sm leading-relaxed text-muted-2">{f.answer}</p>
+                  <p className="px-5 pb-4 text-sm leading-relaxed text-muted-2 md:pr-14">{f.answer}</p>
                 </details>
               ))}
             </div>
