@@ -32,7 +32,12 @@ export async function assertActive(repos: Repositories, auth: AuthUser): Promise
   return meta;
 }
 
+/**
+ * Email verification before enquiring / listing is OFF by default. Set
+ * REQUIRE_EMAIL_VERIFICATION=1 to enforce it (Google accounts are already verified).
+ */
 export function requireVerifiedEmail(auth: AuthUser) {
+  if (process.env.REQUIRE_EMAIL_VERIFICATION !== "1") return;
   if (!auth.emailVerified) throw new DomainError("not_eligible", "Please verify your email first.", { email: "unverified" });
 }
 

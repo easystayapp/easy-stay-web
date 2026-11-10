@@ -186,6 +186,8 @@ Server-only collections (clients are denied by the rules; the API uses the Admin
 | `cases` | `{target}_{reporter}` for reports | reports, grievances (24 h acknowledge / 15 d resolve) and 36 h takedowns, with SLA deadlines stored on the doc |
 | `auditLog`, `notifications` | generated | audit entries carry before/after values; notifications are in-app plus FCM push |
 
+KYC / NOC verification is optional: it never blocks listing or enquiring; approved items only add badges. Email verification before enquiring or listing is off unless `REQUIRE_EMAIL_VERIFICATION=1`.
+
 Setup: `npm run deploy:firestore` (new composite indexes); KYC/NOC files go to the `owners-kyc-docs/{uid}/` folder of the same R2 bucket (admins get 5-minute signed URLs). **Block that folder on the public domain**: Cloudflare → Security → WAF → custom rule, `URI Path starts with /owners-kyc-docs/` → Block, and don't use the `r2.dev` URL in production, since it can't be restricted; grant admin with a custom claim (`getAuth().setCustomUserClaims(uid, { admin: true })`) or `userMeta/{uid}.admin = true`.
 
 ## Admin console (admin.easystay.in)
