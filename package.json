@@ -13,7 +13,6 @@
     "check:r2": "tsx scripts/check-r2.ts",
     "check:firebase": "tsx scripts/check-firebase.ts",
     "deploy:firestore": "tsx scripts/deploy-firestore.ts",
-    "vercel:env": "tsx scripts/vercel-env.ts",
     "seed:content": "tsx scripts/seed-content.ts",
     "admin:create": "tsx scripts/make-admin.ts"
   },

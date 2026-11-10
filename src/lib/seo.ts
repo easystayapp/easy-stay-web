@@ -8,7 +8,7 @@ export const DEFAULT_DESCRIPTION =
 
 /** Canonical public origin (no trailing slash). Set NEXT_PUBLIC_SITE_URL in production. */
 export function siteUrl(): string {
-  const v = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || "easystay.in";
+  const v = process.env.NEXT_PUBLIC_SITE_URL || "easystay.in";
   const withProto = /^https?:\/\//.test(v) ? v : `https://${v}`;
   return withProto.replace(/\/+$/, "");
 }

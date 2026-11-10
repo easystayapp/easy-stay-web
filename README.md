@@ -54,7 +54,6 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
 | `npm run check:firebase` | Verifies the live Firebase setup: config, API key, sign-in providers, service account, Firestore read/write |
 | `npm run deploy:firestore` | Deploys `firestore.rules` and `firestore.indexes.json` to the project in `.env.local` |
 | `npm run check:r2` | Verifies Cloudflare R2: presigned upload, public URL, stat, delete, CORS |
-| `npm run vercel:env` | Copies settings from `.env.local` + `service-account.json` to the linked Vercel project (`--dry-run`, `--target=preview`, `--public-url=…`) |
 
 ## Production setup
 
@@ -87,18 +86,15 @@ The `.env.local` template walks through every value. To go back to the emulators
    ```
 5. `npm run check:r2` should print “Cloudflare R2 is configured correctly.”
 
-## Deploying to Vercel
+## Deploying
 
-Server functions run in **Mumbai (`bom1`, see `vercel.json`)**, next to the Firestore database in `asia-south1`.
+Any Node 20.9+ host works (`npm run build`, then `npm start`). Set the same variables as `.env.local` on the host. Where there is no key file, send `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` (keep the `\n` escapes) instead of `GOOGLE_APPLICATION_CREDENTIALS`. Run the server close to the database (Firestore is in `asia-south1`).
 
-1. `npx vercel login`, then `npx vercel link` in this folder (creates the project; `.vercel/` is git-ignored).
-2. `npm run vercel:env` copies the 14 production settings. The service-account file is sent as `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`, since Vercel has no key file. Use `--public-url=https://media.yourdomain.com` once the R2 custom domain is connected.
-3. Deploy: `npx vercel deploy --prod`, or connect the GitHub repo in Vercel (Settings → Git) for automatic deploys from the production branch.
-4. Allow the production domain everywhere it's checked:
-   - Firebase → Authentication → Settings → Authorized domains: add `your-app.vercel.app` and your custom domain.
-   - R2 bucket CORS: add `https://your-app.vercel.app` and your custom domain to `AllowedOrigins`.
-   - Google Cloud → OAuth consent screen: app name, support email, then **Publish**.
-5. Verify: `CHECK_ORIGINS=https://your-app.vercel.app npm run check:r2`, then sign in, turn on owner tools and add a listing with photos on the live site.
+After the first deploy, allow the production domain everywhere it's checked:
+- Firebase → Authentication → Settings → Authorized domains: add your domain.
+- R2 bucket CORS: add `https://your-domain` to `AllowedOrigins`.
+- Google Cloud → OAuth consent screen: app name, support email, then **Publish**.
+- Verify with `CHECK_ORIGINS=https://your-domain npm run check:r2`, then sign in, turn on owner tools and add a listing with photos.
 
 Before real users: give R2 a custom domain (r2.dev is rate-limited), use an R2 token scoped to the one bucket, and rotate any key that has been shared.
 
@@ -196,7 +192,7 @@ Same codebase and deployment, separate site. `src/proxy.ts` serves `src/app/admi
 
 - Sign-in: email + password, session ends when the tab closes. The API additionally requires the `admin` claim, a verified email and a sign-in within the last 12 hours.
 - Pages: dashboard, verification queue (private-file viewer), reports/grievances/takedowns with SLA timers, listing health score and hide/restore, user ban, audit log.
-- Setup: (1) Vercel → Domains → add `admin.easystay.in` to this project and create the DNS record it shows; (2) Firebase → Authentication → enable **Email/Password** and add `admin.easystay.in` to Authorized domains; (3) `npm run admin:create -- you@easystay.in '<password>'`.
+- Setup: (1) point `admin.easystay.in` at the same deployment as the main site (add the domain on your host and create its DNS record); (2) Firebase → Authentication → enable **Email/Password** and add `admin.easystay.in` to Authorized domains; (3) `npm run admin:create -- you@easystay.in '<password>'`.
 - Local: open `http://admin.localhost:3000` (Chrome resolves `*.localhost`).
 
 ## Switching the database
