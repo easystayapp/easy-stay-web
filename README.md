@@ -148,23 +148,23 @@ scripts/               seed, check-r2
 
 ## Data model
 
-All collections are top level, so each maps 1:1 to a table in any other database. Ids are strings; times are `Date` in the domain and Timestamps only inside the Firestore adapter.
+The database is **shared with the EasyStay Android app** (`easystayapp/easy-stay-mobile-app`, branch `develop`). Both apps read and write the same documents, so the web adapter speaks the Android format; the mapping lives in `src/lib/server/repositories/firestore/schema.ts`. Enum values are upper-case (`PG_HOSTEL`, `SHARING_2`, `BHK_1`, `ACTIVE`…), times are epoch milliseconds and phone numbers are stored as `+91 98765 43210`.
 
 | Collection | Id | Holds |
 |---|---|---|
-| `users` | auth uid | name, email, phone, `owner` settings (enabled, contact number, WhatsApp, contact method, greeting, notification prefs) |
-| `properties` | auto | owner, type, sharing, title, rent, deposit, location, photos (R2 keys), availability, amenities, status, `publishedAt`/`expiresAt`, `viewCount`, `ratingSummary` |
-| `ratings` | `{propertyId}_{userId}` | relation, per-factor scores, combined, review — one per person |
-| `contacts` | `{propertyId}_{userId}` | who contacted which owner, by which channel — gates rating |
-| `savedProperties` | `{userId}_{propertyId}` | saved hearts |
-| `propertyViews` | `{propertyId}_{viewer}_{day}` | dedupes views to one per person per day |
-| `propertyDailyViews` | `{propertyId}_{day}` | per-day counts for statistics |
+| `properties` | auto | listing (`name`, `type`, `size`, `rent`, `city`, `locality`, `houseNumber`, `photoUrls`, `status`, `publishedAt`/`expiresAt`…) + `totalViews`, `periodViews`, `dailyViews{yyyyMMdd UTC}` |
+| `properties/{id}/private/contact` | `contact` | `phone`, `whatsapp`, `ownerId` — signed-in users only |
+| `reviews` | `r_{propertyId}_{uid}` | `relation`, `scores{PROPERTY…FOOD}`, `text` — one per person |
+| `users` | auth uid | `name`, `email`, `phone`, `ownerSettings{…}` (present = owner tools on), `saved[]`, `contacted[]`, `fcmTokens[]` |
+| `listingDrafts` | auto | web-only: unpublished listings (Android has no drafts and would show them) |
+| `propertyViews` | `{propertyId}_{viewer}_{day}` | web-only: one counted view per person per day |
 
-Business rules live in `src/lib/domain` and are shared by API and UI:
-- **Listings** are live 15 days; `expired` is derived from `expiresAt`, so no scheduler is needed. Reminders (3 days, 1 day, expired) are derived too. Repost keeps views and ratings.
-- **Ratings**: combined = mean of Property, Owner, Environment, Value (and Food when served); only users who contacted the owner via EasyStay can rate; “New” until 3 ratings. The aggregate is recomputed from source on each change.
-- **Contact numbers** are never in public responses — only returned to a logged-in seeker, which records the contact.
-- **Photos**: uploaded to `property-photos/{ownerId}/…`; the server checks each new key exists, is an image under 5 MB, and rebuilds public URLs from the key.
+- **Rules** (`firestore.rules`) are the Android app's; keep both copies identical. The web server uses the Admin SDK, which the rules don't restrict. `npm run deploy:firestore -- --rules` deploys only the rules.
+- **Listings** are live 15 days. The Android Worker's daily cron marks expired ones `EXPIRED` and sends reminders; the web also derives `expired` from `expiresAt`.
+- **Ratings**: aggregates are computed from `reviews` on read, since both apps write them. Only users whose `contacted[]` includes the listing can rate.
+- **Contact numbers** live in `private/contact` and are only returned to a logged-in seeker, which adds the listing to their `contacted[]`.
+- **Photos**: uploaded to `properties/{ownerId}/…` in the shared R2 bucket (the Worker uses the same folder). The server checks each new key exists, is an image under 5 MB, and builds the public URL from the key.
+- `npm run seed` only runs against the emulators unless you pass `--live`.
 
 ## Switching the database
 

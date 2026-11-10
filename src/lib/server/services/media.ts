@@ -10,7 +10,8 @@ import { requireOwner } from "./users";
 export const PHOTO_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-const ownerPrefix = (uid: string) => `property-photos/${uid}/`;
+/** Same folder the Android app's Worker uploads to, in the shared R2 bucket. */
+const ownerPrefix = (uid: string) => `properties/${uid}/`;
 
 function checkFile(contentType: unknown, size: unknown): string {
   const ext = typeof contentType === "string" ? PHOTO_TYPES[contentType] : undefined;
@@ -72,7 +73,7 @@ export async function verifyPhotos(ownerId: string, photos: Photo[], alreadyStor
 
 export async function deleteMedia(paths: string[]): Promise<void> {
   // Only user uploads are ours to delete (never bundled demo photos).
-  paths = paths.filter((p) => p.startsWith("property-photos/"));
+  paths = paths.filter((p) => p.startsWith("properties/") && !p.includes(".."));
   if (!paths.length) return;
   const storage = getFileStorage();
   await Promise.allSettled(paths.map((p) => storage.delete(p)));

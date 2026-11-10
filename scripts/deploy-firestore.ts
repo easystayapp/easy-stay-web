@@ -2,7 +2,8 @@
  * Deploys firestore.rules and firestore.indexes.json to the project in
  * .env.local. Authenticates with the service account (GOOGLE_APPLICATION_CREDENTIALS)
  * or, failing that, your `firebase login` session.
- *   npm run deploy:firestore
+ *   npm run deploy:firestore               # rules + indexes
+ *   npm run deploy:firestore -- --rules    # rules only
  */
 import { spawnSync } from "node:child_process";
 
@@ -19,7 +20,16 @@ if (!project) {
 }
 const r = spawnSync(
   "npx",
-  ["-y", "firebase-tools@latest", "deploy", "--only", "firestore:rules,firestore:indexes", "--project", project, "--non-interactive"],
+  [
+    "-y",
+    "firebase-tools@latest",
+    "deploy",
+    "--only",
+    process.argv.includes("--rules") ? "firestore:rules" : "firestore:rules,firestore:indexes",
+    "--project",
+    project,
+    "--non-interactive",
+  ],
   { stdio: "inherit", env: process.env },
 );
 process.exit(r.status ?? 1);
