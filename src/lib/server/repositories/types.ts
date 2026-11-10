@@ -107,7 +107,61 @@ export interface ContentRepository {
   putPage(page: Page): Promise<void>;
 }
 
+/* ------------------------------------------------------------ doc stores */
+
+export type Where = [field: string, op: "==" | "!=" | "<" | "<=" | ">" | ">=" | "in" | "array-contains", value: unknown];
+
+export interface Query {
+  where?: Where[];
+  orderBy?: [field: string, dir: "asc" | "desc"];
+  limit?: number;
+  /** Cursor: the `orderBy` field value of the last row of the previous page. */
+  after?: unknown;
+}
+
+/** Atomic numeric increment, usable as a value in `merge`/batch ops. */
+export interface Increment {
+  __inc: number;
+}
+export const inc = (n: number): Increment => ({ __inc: n });
+
+export interface DocStore<T extends { id: string }> {
+  get(id: string): Promise<T | null>;
+  getMany(ids: string[]): Promise<T[]>;
+  /** Replace the whole document. */
+  set(id: string, data: Omit<T, "id">): Promise<void>;
+  /** Create only if absent. Returns false when it already existed (idempotent creates). */
+  create(id: string, data: Omit<T, "id">): Promise<boolean>;
+  /** Shallow merge; `inc()` values increment atomically. */
+  merge(id: string, patch: Record<string, unknown>): Promise<void>;
+  delete(id: string): Promise<void>;
+  query(q: Query): Promise<T[]>;
+  /** Read-modify-write in one transaction. Return `undefined` to leave the doc unchanged. */
+  update<R>(id: string, fn: (current: T | null) => { next?: Omit<T, "id">; result: R }): Promise<R>;
+}
+
+export type BatchOp =
+  | { op: "set"; path: string; id: string; data: Record<string, unknown> }
+  | { op: "merge"; path: string; id: string; data: Record<string, unknown> }
+  | { op: "delete"; path: string; id: string };
+
+/** Collection layout for the transactional layer. All server-only (rules deny clients). */
+export const PATHS = {
+  userMeta: "userMeta",
+  enquiries: "enquiries",
+  messages: (enquiryId: string) => `enquiries/${enquiryId}/messages`,
+  verifications: "verifications",
+  safety: "propertySafety",
+  cases: "cases",
+  audit: "auditLog",
+  notifications: "notifications",
+} as const;
+
 export interface Repositories {
+  /** Typed document store over any collection path (see `PATHS`). */
+  docs<T extends { id: string }>(path: string): DocStore<T>;
+  /** Several writes across collections, committed atomically. */
+  batch(ops: BatchOp[]): Promise<void>;
   content: ContentRepository;
   users: UserRepository;
   properties: PropertyRepository;
@@ -151,6 +205,8 @@ export interface FileStorage {
   /** Direct browser upload URL, or null if this backend can't presign. */
   presignUpload(path: string, contentType: string): Promise<PresignedUpload | null>;
   /** Object metadata, or null if it doesn't exist. */
+  /** Short-lived read URL for private objects (KYC / NOC documents). */
+  signedUrl?(path: string, expiresIn: number): Promise<string>;
   stat(path: string): Promise<FileStat | null>;
   delete(path: string): Promise<void>;
 }

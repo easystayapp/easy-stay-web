@@ -9,6 +9,7 @@ import type { SearchFilters } from "@/lib/domain/search";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
 import { getAdminApp } from "../../firebase-admin";
 import type { NewProperty, PropertyPatch, Repositories, UserPatch } from "../types";
+import { firestoreBatch, firestoreDocStore } from "../docstore";
 import { createFirestoreContent } from "./content";
 import {
   COLLECTIONS,
@@ -126,6 +127,8 @@ export function createFirestoreRepositories(): Repositories {
   }
 
   return {
+    docs: (path) => firestoreDocStore(fs, path),
+    batch: (ops) => firestoreBatch(fs, ops),
     content,
     users: {
       async get(id) {

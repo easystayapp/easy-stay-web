@@ -5,6 +5,7 @@
  *
  * Data lives for the lifetime of the server process.
  */
+import { memoryBatch, memoryDocStore } from "../docstore";
 import { randomUUID } from "node:crypto";
 import type { City, Page } from "@/lib/domain/content";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
@@ -51,6 +52,8 @@ export function createMemoryRepositories(): Repositories {
   const s = memoryStore();
 
   return {
+    docs: memoryDocStore,
+    batch: memoryBatch,
     content: {
       async listCities() {
         return [...s.cities.values()].map(clone).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));

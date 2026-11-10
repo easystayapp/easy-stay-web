@@ -9,6 +9,8 @@ import type {
   Suggestion,
 } from "@/types/api";
 import { DomainError } from "@/lib/domain/errors";
+import { assertActive, requireVerifiedEmail } from "./ops/guard";
+import { assertNotHidden } from "./ops/verification";
 import { normalizeIndianMobile } from "@/lib/domain/format";
 import {
   applyListingAction,
@@ -192,6 +194,8 @@ export async function createProperty(
   publish: boolean,
 ): Promise<EditableProperty> {
   const owner = await requireOwner(repos, auth);
+  await assertActive(repos, auth);
+  requireVerifiedEmail(auth);
   const input = assertPropertyInput(body, publish ? "publish" : "draft");
   input.photos = await verifyPhotos(auth.uid, input.photos);
   const now = new Date();
@@ -247,6 +251,9 @@ export async function applyAction(
     throw new DomainError("invalid_input", "Unknown action.");
   }
   const { p } = await loadOwned(repos, auth, id);
+  await assertActive(repos, auth);
+  // An admin-hidden listing can't be brought back by its owner.
+  if (action !== "pause" && action !== "rented") await assertNotHidden(repos, id);
   const now = new Date();
   if (action === "publish") {
     // A draft must be complete before going live.

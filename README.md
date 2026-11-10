@@ -172,6 +172,31 @@ The database is **shared with the EasyStay Android app** (`easystayapp/easy-stay
 - **Content is data, not code.** Cities, localities, home sections, welcome cards, greetings and the help/about/terms/privacy pages are read from the collections above (cached ~1 minute; pages revalidate every minute). Edit them in the Firebase console. `npm run seed:content` creates any that are missing (`--dry-run`, `--overwrite`); its source is `src/lib/server/seed/content.ts`. Enum codes, labels and business rules (15-day listings, 3–5 photos, "New" until 3 ratings) stay in code: the Android app and its Worker hardcode the same values.
 - `npm run seed` only runs against the emulators unless you pass `--live`.
 
+## Transactional layer (enquiries, chat, verification, moderation, privacy)
+
+Server-only collections (clients are denied by the rules; the API uses the Admin SDK). Times are epoch ms. Code: `src/lib/domain/ops.ts` (model + rules), `src/lib/server/services/ops/` (use cases), `src/app/api/{enquiries,reports,notifications,admin,me/*}` (routes).
+
+| Collection | Id | Design |
+|---|---|---|
+| `enquiries` | `{propertyId}_{seekerId}` | one thread per seeker and listing, so creating one is idempotent. Holds the visit slot and denormalised inbox fields (title, thumbnail, last message, unread counters): an inbox is **one indexed query**, with no joins |
+| `enquiries/{id}/messages` | `{time}_{seq}_{rand}` | append-only, paged by time. A send is one set plus one atomic increment merge (no read-modify-write) |
+| `userMeta` | uid | ban flag, consents, KYC state, admin flag (kept apart from `users`, which Android shares) |
+| `verifications` | `{subjectId}_{kind}` | KYC / NOC / photo submissions; the admin queue is `status == pending order by submittedAt` |
+| `propertySafety` | propertyId | published health score, NOC expiry, hidden flag. Lists read it with one batched get, and the Android-shared `properties` doc is untouched |
+| `cases` | `{target}_{reporter}` for reports | reports, grievances (24 h acknowledge / 15 d resolve) and 36 h takedowns, with SLA deadlines stored on the doc |
+| `auditLog`, `notifications` | generated | audit entries carry before/after values; notifications are in-app plus FCM push |
+
+Setup: `npm run deploy:firestore` (new composite indexes); create a **private** R2 bucket and set `R2_PRIVATE_BUCKET` (KYC/NOC files; admins get 5-minute signed URLs); grant admin with a custom claim (`getAuth().setCustomUserClaims(uid, { admin: true })`) or `userMeta/{uid}.admin = true`.
+
+## Admin console (admin.easystay.in)
+
+Same codebase and deployment, separate site. `src/proxy.ts` serves `src/app/admin-site/` only on hosts starting with `admin.`, at clean URLs (`/login`, `/cases`…), and only the `/api/admin/*` API there. Other hosts get 404 for both. Because Firebase Auth state is per-origin, the admin sign-in is independent from the public site's.
+
+- Sign-in: email + password, session ends when the tab closes. The API additionally requires the `admin` claim, a verified email and a sign-in within the last 12 hours.
+- Pages: dashboard, verification queue (private-file viewer), reports/grievances/takedowns with SLA timers, listing health score and hide/restore, user ban, audit log.
+- Setup: (1) Vercel → Domains → add `admin.easystay.in` to this project and create the DNS record it shows; (2) Firebase → Authentication → enable **Email/Password** and add `admin.easystay.in` to Authorized domains; (3) `npm run admin:create -- you@easystay.in '<password>'`.
+- Local: open `http://admin.localhost:3000` (Chrome resolves `*.localhost`).
+
 ## Switching the database
 
 Services depend only on the interfaces in `src/lib/server/repositories/types.ts`. To move from Firestore to, say, Postgres:

@@ -57,6 +57,10 @@ service cloud.firestore {
     match /content/{docId}   { allow read: if true; allow write: if false; }
     match /pages/{slug}      { allow read: if true; allow write: if false; }
 
+    // ── Web-only transactional collections (enquiries, enquiries/*/messages, userMeta,
+    //    verifications, propertySafety, cases, auditLog, notifications) have no match
+    //    block on purpose: clients are denied and the server uses the Admin SDK. ──
+
     // ── User profiles: saved, contacted, owner settings, FCM tokens ──
     match /users/{uid} {
       allow read, write: if isUser(uid);

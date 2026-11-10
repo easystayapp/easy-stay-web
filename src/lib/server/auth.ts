@@ -13,6 +13,11 @@ export interface AuthUser {
   email: string | null;
   name: string | null;
   picture: string | null;
+  emailVerified: boolean;
+  /** `admin` custom claim (set with the Admin SDK). */
+  admin: boolean;
+  /** When the user last actually signed in (ms). */
+  authTime: number;
 }
 
 export async function verifyBearer(header: string | null): Promise<AuthUser | null> {
@@ -25,6 +30,9 @@ export async function verifyBearer(header: string | null): Promise<AuthUser | nu
       email: t.email ?? null,
       name: (t.name as string | undefined) ?? null,
       picture: t.picture ?? null,
+      emailVerified: t.email_verified === true,
+      admin: t.admin === true,
+      authTime: (t.auth_time ?? 0) * 1000,
     };
   } catch {
     throw new DomainError("unauthenticated", "Your session has expired. Please log in again.");

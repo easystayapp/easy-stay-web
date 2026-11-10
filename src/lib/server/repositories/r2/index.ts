@@ -15,6 +15,7 @@
  */
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -23,7 +24,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FileStorage } from "../types";
 
-const CACHE_CONTROL = "public, max-age=31536000, immutable";
+const PUBLIC_CACHE_CONTROL = "public, max-age=31536000, immutable";
 const PRESIGN_SECONDS = 300;
 
 /** Bucket name; R2_BUCKET_NAME (Cloudflare's guide) is accepted as an alias. */
@@ -39,9 +40,17 @@ export function r2Configured(): boolean {
   return !!(bucketName() && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 }
 
-export function createR2FileStorage(): FileStorage {
-  const bucket = required("R2_BUCKET");
-  const publicBase = required("R2_PUBLIC_URL").replace(/\/+$/, "");
+export const r2PrivateConfigured = () => !!process.env.R2_PRIVATE_BUCKET && r2Configured();
+
+/**
+ * `private: true` targets R2_PRIVATE_BUCKET (KYC / NOC documents): no public URL,
+ * no-store caching, and reads only through short-lived signed URLs.
+ */
+export function createR2FileStorage(opts: { private?: boolean } = {}): FileStorage {
+  const isPrivate = !!opts.private;
+  const bucket = isPrivate ? required("R2_PRIVATE_BUCKET") : required("R2_BUCKET");
+  const publicBase = isPrivate ? "" : required("R2_PUBLIC_URL").replace(/\/+$/, "");
+  const CACHE_CONTROL = isPrivate ? "private, no-store" : PUBLIC_CACHE_CONTROL;
   const endpoint = process.env.R2_ENDPOINT || `https://${required("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`;
   const client = new S3Client({
     region: "auto",
@@ -53,7 +62,7 @@ export function createR2FileStorage(): FileStorage {
     },
   });
 
-  const publicUrl = (path: string) => `${publicBase}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const publicUrl = (path: string) => isPrivate ? "" : `${publicBase}/${path.split("/").map(encodeURIComponent).join("/")}`;
 
   return {
     publicUrl,
@@ -79,6 +88,10 @@ export function createR2FileStorage(): FileStorage {
         url: publicUrl(path),
         expiresIn: PRESIGN_SECONDS,
       };
+    },
+
+    async signedUrl(path, expiresIn) {
+      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: path }), { expiresIn });
     },
 
     async stat(path) {
