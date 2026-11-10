@@ -50,6 +50,30 @@ export interface PropertyCard {
 /** A home-carousel stay (the card already carries every photo). */
 export type FeaturedStay = PropertyCard;
 
+/** Public facts about a listing's owner (never contact details: those stay behind login). */
+export interface OwnerProfile {
+  name: string;
+  /** Average "owner" score across all their listings' ratings. */
+  ownerRating: number | null;
+  ratingCount: number;
+  /** Live listings right now. */
+  listings: number;
+  /** ISO date the account was created. */
+  memberSince: string | null;
+}
+
+/** A highly rated owner for the home page. */
+export interface TopOwner {
+  name: string;
+  rating: number;
+  ratingCount: number;
+  listings: number;
+  locality: string;
+  /** Their best-rated live listing, to open from the card. */
+  propertyId: string;
+  coverUrl: string | null;
+}
+
 export interface PropertyDetail extends PropertyCard {
   status: ListingStatus;
   deposit: number | null;
@@ -59,7 +83,7 @@ export interface PropertyDetail extends PropertyCard {
   description: string;
   factors: Record<RatingFactor, number | null>;
   contactChannels: ContactChannel[];
-  owner: { name: string; ownerRating: number | null };
+  owner: OwnerProfile;
   viewerIsOwner: boolean;
   expiresAt: string | null;
 }

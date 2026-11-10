@@ -3,6 +3,7 @@ import type {
   EditableProperty,
   Me,
   OwnerListing,
+  OwnerProfile,
   PropertyCard,
   PropertyDetail,
   RatingItem,
@@ -55,7 +56,7 @@ export function contactChannelsFor(owner: User | null): ContactChannel[] {
   return m === "both" ? ["whatsapp", "call"] : [m];
 }
 
-export function toDetail(p: Property, owner: User | null, viewerId: string | null, now = new Date()): PropertyDetail {
+export function toDetail(p: Property, owner: User | null, viewerId: string | null, ownerStats: Pick<OwnerProfile, "ownerRating" | "ratingCount" | "listings">, now = new Date()): PropertyDetail {
   return {
     ...toCard(p),
     status: effectiveStatus(p, now),
@@ -66,7 +67,11 @@ export function toDetail(p: Property, owner: User | null, viewerId: string | nul
     description: p.description,
     factors: factorAverages(p),
     contactChannels: contactChannelsFor(owner),
-    owner: { name: firstName(owner?.displayName ?? "Owner"), ownerRating: factorAverage(p.ratingSummary, "owner") },
+    owner: {
+      name: firstName(owner?.displayName ?? "Owner"),
+      ...ownerStats,
+      memberSince: owner?.createdAt ? iso(owner.createdAt) : null,
+    },
     viewerIsOwner: viewerId === p.ownerId,
     expiresAt: iso(p.expiresAt),
   };

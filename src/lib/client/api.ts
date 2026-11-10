@@ -22,6 +22,7 @@ import type {
   ReminderItem,
   SavedItem,
   SearchResponse,
+  TopOwner,
   Suggestion,
   UploadTicket,
   UploadedPhoto,
@@ -31,6 +32,16 @@ import { serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { ContactChannel } from "@/lib/domain/types";
 import type { PropertyInput } from "@/lib/domain/validation";
 import { firebaseAuth, firebaseConfigured } from "./firebase";
+
+export interface InboxNotification {
+  id: string;
+  type: "new_enquiry" | "visit_update" | "new_message" | "verification" | "case_update";
+  title: string;
+  body: string;
+  href: string;
+  read: boolean;
+  at: number;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -73,6 +84,7 @@ export const api = {
   search: (f: SearchFilters) => request<SearchResponse>("GET", `/api/properties?${serializeFilters(f)}`),
   suggestions: (q: string, city: string) =>
     request<{ items: Suggestion[] }>("GET", `/api/properties/suggestions?q=${enc(q)}&city=${enc(city)}`),
+  topOwners: (city: string) => request<{ items: TopOwner[] }>("GET", `/api/owners/top?city=${enc(city)}`),
   featured: (city: string) => request<{ items: FeaturedStay[] }>("GET", `/api/properties/featured?city=${enc(city)}`),
   property: (id: string) => request<PropertyDetail>("GET", `/api/properties/${enc(id)}`),
   recordView: (id: string, deviceId: string) =>
@@ -101,6 +113,9 @@ export const api = {
   /* owner */
   myListings: () => request<OwnerListingsResponse>("GET", "/api/me/listings"),
   notifications: () => request<{ items: ReminderItem[] }>("GET", "/api/me/notifications"),
+  /** In-app notifications (enquiries, visits, messages, reviews). */
+  inbox: () => request<{ items: InboxNotification[]; unread: number; next: number | null }>("GET", "/api/notifications"),
+  markInboxRead: (ids: string[]) => request<{ ok: true }>("POST", "/api/notifications", { ids }),
   createProperty: (input: PropertyInput, publish: boolean) =>
     request<EditableProperty>("POST", "/api/properties", { input, publish }),
   editable: (id: string) => request<EditableProperty>("GET", `/api/properties/${enc(id)}/edit`),

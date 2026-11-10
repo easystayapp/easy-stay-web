@@ -8,6 +8,7 @@ import { PropertyCard } from "@/components/property/property-card";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useCity } from "@/hooks/use-city";
 import { activeChips, FiltersPanel, resetFilters } from "@/components/search/filters-panel";
+import { ListingSearch } from "@/components/search/listing-search";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +77,11 @@ function ResultsView() {
       </aside>
 
       <section className="flex min-w-0 flex-col gap-5">
+        {/* Desktop search lives in the page, not the header (phones have the bar below). */}
+        <div className="hidden md:block">
+          <ListingSearch />
+        </div>
+
         <div className="flex items-center gap-3 md:hidden">
           <Link
             href="/search"

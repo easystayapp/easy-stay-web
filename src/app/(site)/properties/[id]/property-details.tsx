@@ -1,11 +1,12 @@
 "use client";
 
-import { Bath, Car, ChevronLeft, Info, MapPin, MessageCircle, Phone, Snowflake, Utensils, Wifi, type LucideIcon } from "lucide-react";
+import { Bath, Building2, CalendarClock, Car, ChevronLeft, Info, MapPin, MessageCircle, Phone, Snowflake, Sofa, User, Users, Utensils, Wifi, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContactSheet } from "@/components/property/contact-sheet";
 import { Gallery } from "@/components/property/gallery";
+import { OwnerCard } from "@/components/property/owner-card";
 import { LocationMap } from "@/components/property/location-map";
 import { SaveButton } from "@/components/property/property-card";
 import { RatingsSection } from "@/components/property/ratings-section";
@@ -105,15 +106,15 @@ export function PropertyDetails() {
   const avail = availabilityLabel(p.availableFrom ? new Date(p.availableFrom) : null);
   const canCall = p.contactChannels.includes("call");
   const canWa = p.contactChannels.includes("whatsapp");
-  const facts: [string, string][] = [
-    ["Property type", PROPERTY_TYPE_SHORT[p.type]],
-    [p.type === "flat" ? "Size" : "Sharing", SHARING_LABEL[p.sharing]],
-    ["Furnishing", p.furnishing ? FURNISHING_LABEL[p.furnishing] : "Not specified"],
-    ["Food", p.food ? "Available" : "Not provided"],
-    ["Preferred", GENDER_LABEL[p.availableFor]],
-    ["Available from", avail === "Available now" ? "Immediately" : avail.replace("From ", "")],
+  const facts: [LucideIcon, string, string][] = [
+    [Building2, "Type", PROPERTY_TYPE_SHORT[p.type]],
+    [Users, p.type === "flat" ? "Size" : "Sharing", SHARING_LABEL[p.sharing]],
+    [Sofa, "Furnishing", p.furnishing ? FURNISHING_LABEL[p.furnishing] : "Not specified"],
+    [Utensils, "Food", p.food ? "Available" : "Not provided"],
+    [User, "Preferred", GENDER_LABEL[p.availableFor]],
+    [CalendarClock, "Available", avail === "Available now" ? "Immediately" : avail.replace("From ", "")],
   ];
-  if (p.electricity) facts.push(["Electricity", ELECTRICITY_LABEL[p.electricity]]);
+  if (p.electricity) facts.push([Zap, "Electricity", ELECTRICITY_LABEL[p.electricity]]);
 
   const ownerControls = p.viewerIsOwner && (
     <div className="flex flex-col gap-3 rounded-[20px] border border-blush-line bg-blush p-4">
@@ -220,11 +221,16 @@ export function PropertyDetails() {
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {facts.map(([k, v]) => (
-              <div key={k} className="rounded-2xl border border-line p-4">
-                <dt className="text-xs font-semibold text-muted-foreground">{k}</dt>
-                <dd className="mt-1 text-[15px] font-bold">{v}</dd>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-2xl border border-line px-4 py-4 sm:grid-cols-3 lg:grid-cols-4">
+            {facts.map(([Icon, k, v]) => (
+              <div key={k} className="flex min-w-0 items-center gap-2.5">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blush text-brand">
+                  <Icon aria-hidden className="size-4" />
+                </span>
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <dt className="text-[11px] font-semibold text-muted-foreground">{k}</dt>
+                  <dd className="truncate text-sm font-bold">{v}</dd>
+                </span>
               </div>
             ))}
           </dl>
@@ -258,6 +264,8 @@ export function PropertyDetails() {
               <p className="text-[15px] leading-relaxed whitespace-pre-line text-muted-2">{p.description}</p>
             </section>
           )}
+
+          <OwnerCard owner={p.owner} />
 
           <LocationMap title={p.title} address={p.address} locality={p.locality} city={p.city} geo={p.geo} />
 

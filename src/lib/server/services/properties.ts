@@ -1,4 +1,5 @@
 import type {
+  TopOwner,
   EditableProperty,
   FeaturedStay,
   OwnerListingsResponse,
@@ -34,7 +35,7 @@ import {
   type SearchFilters,
 } from "@/lib/domain/search";
 import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
-import { formatRupees } from "@/lib/domain/format";
+import { firstName, formatRupees } from "@/lib/domain/format";
 import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/time";
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
 import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
@@ -136,8 +137,15 @@ export async function getPropertyDetail(
   if (!isOwner && !isPubliclyVisible(p)) {
     throw new DomainError("not_found", "This property is no longer available. It may have been rented or expired.");
   }
-  const owner = await repos.users.get(p.ownerId);
-  return toDetail(p, owner, auth?.uid ?? null);
+  const [owner, theirs] = await Promise.all([repos.users.get(p.ownerId), repos.properties.listByOwner(p.ownerId)]);
+  const now = new Date();
+  const live = theirs.filter((x) => isPubliclyVisible(x, now));
+  const { sum, count } = ownerScore(live.length ? live : [p]);
+  return toDetail(p, owner, auth?.uid ?? null, {
+    ownerRating: count ? Math.round((sum / count) * 10) / 10 : null,
+    ratingCount: count,
+    listings: live.length,
+  });
 }
 
 /** One view per person (or device) per day; owners viewing their own listing don't count. */
@@ -349,4 +357,51 @@ export async function getPropertyStats(repos: Repositories, auth: AuthUser, id: 
     rating: { average: p.ratingSummary.average, count: p.ratingSummary.count },
     factors: factorAverages(p),
   };
+}
+
+/** Sum and count of the "owner" score across a set of listings. */
+function ownerScore(list: Property[]) {
+  let sum = 0;
+  let count = 0;
+  for (const x of list) {
+    const t = x.ratingSummary.factors.owner;
+    if (t?.count) {
+      sum += t.sum;
+      count += t.count;
+    }
+  }
+  return { sum, count };
+}
+
+/**
+ * Best-rated owners in a city, ranked by their "owner" score across every live
+ * listing. Only owners with at least one real rating appear, best first.
+ */
+export async function topOwners(repos: Repositories, city: string, n = 6): Promise<TopOwner[]> {
+  const now = new Date();
+  const visible = (await repos.properties.findCandidates(emptyFilters(city), CANDIDATE_LIMIT)).filter((p) => isPubliclyVisible(p, now));
+  const byOwner = new Map<string, Property[]>();
+  for (const p of visible) byOwner.set(p.ownerId, [...(byOwner.get(p.ownerId) ?? []), p]);
+
+  const ranked = [...byOwner.entries()]
+    .map(([ownerId, list]) => {
+      const { sum, count } = ownerScore(list);
+      const best = [...list].sort((a, b) => (b.ratingSummary.average ?? 0) - (a.ratingSummary.average ?? 0) || b.ratingSummary.count - a.ratingSummary.count)[0];
+      return { ownerId, list, count, rating: count ? sum / count : 0, best };
+    })
+    .filter((o) => o.count > 0)
+    .sort((a, b) => b.rating - a.rating || b.count - a.count)
+    .slice(0, n);
+  if (!ranked.length) return [];
+
+  const users = new Map((await repos.users.getMany(ranked.map((o) => o.ownerId))).map((u) => [u.id, u]));
+  return ranked.map((o) => ({
+    name: firstName(users.get(o.ownerId)?.displayName || "Owner"),
+    rating: Math.round(o.rating * 10) / 10,
+    ratingCount: o.count,
+    listings: o.list.length,
+    locality: o.best.location.locality,
+    propertyId: o.best.id,
+    coverUrl: o.best.photos[0]?.url ?? null,
+  }));
 }

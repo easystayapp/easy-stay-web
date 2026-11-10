@@ -1,11 +1,16 @@
 "use client";
 
-import { Bell, ChevronRight, Heart, KeyRound, LayoutGrid, LifeBuoy, Settings, Star, type LucideIcon } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Heart, KeyRound, LayoutGrid, LifeBuoy, Settings, Star, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { RequireAuth } from "@/components/auth/guards";
-import { ProfileShell } from "@/components/layout/profile-shell";
+import { MyListingsSection } from "@/components/profile/my-listings-section";
+import { MyRatingsSection } from "@/components/profile/my-ratings-section";
+import { NotificationsSection } from "@/components/profile/notifications-section";
+import { OwnerSettingsSection } from "@/components/profile/owner-settings-section";
+import { SavedSection } from "@/components/profile/saved-section";
+import { PROFILE_TABS, ProfileShell, tabHref, type ProfileTab } from "@/components/layout/profile-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -18,7 +23,7 @@ import { formatPhone } from "@/lib/domain/format";
 
 function Row({ href, icon: Icon, label, hint, badge }: { href: string; icon: LucideIcon; label: string; hint?: string; badge?: number }) {
   return (
-    <Link href={href} className="flex items-center gap-3.5 px-4 py-3.5 text-ink hover:bg-surface hover:text-ink">
+    <Link href={href} scroll={false} className="flex items-center gap-3.5 px-4 py-3.5 text-ink hover:bg-surface hover:text-ink">
       <Icon aria-hidden className="size-5 text-brand" />
       <span className="flex flex-1 flex-col">
         <span className="text-[15px] font-semibold">{label}</span>
@@ -87,7 +92,7 @@ function PersonalDetails({ me }: { me: Me }) {
 
       <div className={`flex flex-col gap-1 rounded-2xl px-4 py-3.5 ${me.ownerToolsOn ? "bg-ok-bg" : "bg-surface"}`}>
         <span className={`text-xs font-extrabold tracking-[0.06em] ${me.ownerToolsOn ? "text-ok" : "text-muted-2"}`}>
-          {me.ownerToolsOn ? "OWNER TOOLS ON · VERIFIED" : "OWNER TOOLS OFF"}
+          {me.ownerToolsOn ? "OWNER" : "SEEKER"}
         </span>
         <span className="text-[13px] text-muted-2">
           {me.ownerToolsOn ? "You can list and manage properties, and still browse." : "You can browse, save and contact owners"}
@@ -111,9 +116,9 @@ function PersonalDetails({ me }: { me: Me }) {
         <div className="flex flex-col gap-2">
           <span className="eyebrow">Owner settings</span>
           <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
-            <Row href="/my-listings" icon={LayoutGrid} label="My listings" />
-            <Row href="/profile/owner-settings" icon={Settings} label="Contact & notification settings" hint={`Listing number ${formatPhone(me.owner?.contactPhone)}`} />
-            <Row href="/notifications" icon={Bell} label="Expiry reminders" />
+            <Row href={tabHref("listings")} icon={LayoutGrid} label="My listings" />
+            <Row href={tabHref("owner-settings")} icon={Settings} label="Contact & notification settings" hint={`Listing number ${formatPhone(me.owner?.contactPhone)}`} />
+            <Row href={tabHref("notifications")} icon={Bell} label="Expiry reminders" />
           </div>
         </div>
       )}
@@ -121,8 +126,8 @@ function PersonalDetails({ me }: { me: Me }) {
       <div className="flex flex-col gap-2">
         {me.ownerToolsOn && <span className="eyebrow">Finding a place</span>}
         <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
-          <Row href="/saved" icon={Heart} label="Saved properties" badge={me.savedCount} />
-          <Row href="/profile/ratings" icon={Star} label="My ratings" />
+          <Row href={tabHref("saved")} icon={Heart} label="Saved properties" badge={me.savedCount} />
+          <Row href={tabHref("ratings")} icon={Star} label="My ratings" />
           <Row href="/help" icon={LifeBuoy} label="Help & support" />
         </div>
       </div>
@@ -142,15 +147,40 @@ function PersonalDetails({ me }: { me: Me }) {
   );
 }
 
-/** 10 · Profile (owner tools off) · 23 · Profile (owner tools on) */
-export default function ProfilePage() {
+/** 10 · Profile (owner tools off) · 23 · Profile (owner tools on). Every section opens in place. */
+function ProfileTabs() {
+  const params = useSearchParams();
+  const requested = params.get("tab") as ProfileTab | null;
   return (
     <RequireAuth title="Log in to see your profile">
-      {(me) => (
-        <ProfileShell me={me}>
-          <PersonalDetails me={me} />
-        </ProfileShell>
-      )}
+      {(me) => {
+        const ownerOnly: ProfileTab[] = ["owner-settings", "listings", "notifications"];
+        const tab: ProfileTab =
+          requested && PROFILE_TABS.includes(requested) && (me.ownerToolsOn || !ownerOnly.includes(requested)) ? requested : "details";
+        return (
+          <ProfileShell me={me} active={tab}>
+            {tab !== "details" && (
+              <Link href={tabHref("details")} scroll={false} className="mb-4 inline-flex items-center gap-1 text-sm font-bold md:hidden">
+                <ChevronLeft aria-hidden className="size-4" /> Profile
+              </Link>
+            )}
+            {tab === "details" && <PersonalDetails me={me} />}
+            {tab === "owner-settings" && <OwnerSettingsSection me={me} />}
+            {tab === "listings" && <MyListingsSection me={me} embedded />}
+            {tab === "notifications" && <NotificationsSection embedded />}
+            {tab === "saved" && <SavedSection embedded />}
+            {tab === "ratings" && <MyRatingsSection />}
+          </ProfileShell>
+        );
+      }}
     </RequireAuth>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense>
+      <ProfileTabs />
+    </Suspense>
   );
 }

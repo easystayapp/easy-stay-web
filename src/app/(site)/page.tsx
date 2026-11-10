@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar } from "@/components/ui/primitives";
 import { PageSpinner } from "@/components/ui/page-spinner";
 import { Reveal } from "@/components/ui/reveal";
 import { api } from "@/lib/client/api";
@@ -19,7 +20,7 @@ import { cx } from "@/lib/client/cx";
 import { welcomeSeen } from "@/lib/client/prefs";
 import { useCatalog } from "@/hooks/use-catalog";
 import { popularLocalities, type CategoryIcon, type HighlightIcon } from "@/lib/domain/content";
-import type { FeaturedStay, PropertyCard as Card } from "@/types/api";
+import type { FeaturedStay, PropertyCard as Card, TopOwner } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
 
@@ -63,6 +64,7 @@ export default function HomePage() {
   const [items, setItems] = useState<Card[] | null>(null);
   const [featured, setFeatured] = useState<FeaturedStay[] | null>(null);
   const [topRated, setTopRated] = useState<Card[] | null>(null);
+  const [owners, setOwners] = useState<TopOwner[] | null>(null);
   const [q, setQ] = useState("");
   const [type, setType] = useState<PropertyType | "">("");
   const [budget, setBudget] = useState(0);
@@ -82,6 +84,10 @@ export default function HomePage() {
       // Only listings that actually have ratings; best first.
       .then((r) => !cancelled && setTopRated(r.items.filter((p) => p.rating.count > 0 && (p.rating.average ?? 0) >= 4).slice(0, 4)))
       .catch(() => !cancelled && setTopRated([]));
+    api
+      .topOwners(city)
+      .then((r) => !cancelled && setOwners(r.items))
+      .catch(() => !cancelled && setOwners([]));
     api
       .featured(city)
       .then((r) => !cancelled && setFeatured(r.items))
@@ -278,6 +284,45 @@ export default function HomePage() {
               <PropertyCard key={p.id} p={p} imageHeight="h-[200px]" />
             ))}
           </div>
+        </Reveal>
+      )}
+
+      {owners && (
+        <Reveal className="container-page pt-12 md:pt-14">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[22px] font-extrabold tracking-tight md:text-[26px]">Top rated owners in {city}</h2>
+            <span className="text-sm text-muted-foreground">Ranked by what their tenants say</span>
+          </div>
+          {owners.length === 0 ? (
+            <p className="rounded-[20px] bg-surface px-6 py-8 text-center text-sm text-muted-foreground">
+              No owner ratings in {city} yet. Rate a place you contacted and help others find great owners.
+            </p>
+          ) : (
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
+            {owners.map((o) => (
+              <li key={o.propertyId}>
+                <Link
+                  href={`/properties/${o.propertyId}`}
+                  className="lift flex items-center gap-4 rounded-[22px] border-[1.5px] border-line bg-white p-4 text-ink hover:border-blush-line hover:text-ink hover:shadow-[var(--shadow-card)]"
+                >
+                  <Avatar name={o.name} size={52} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-base font-extrabold">{o.name}</span>
+                    <span className="flex items-center gap-1 text-sm font-bold">
+                      <Star aria-hidden className="size-4 fill-current text-star" />
+                      {o.rating.toFixed(1)}
+                      <span className="font-medium text-muted-foreground">· {o.ratingCount} {o.ratingCount === 1 ? "rating" : "ratings"}</span>
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {o.listings} {o.listings === 1 ? "listing" : "listings"} · {o.locality}
+                    </span>
+                  </span>
+                  <ArrowRight aria-hidden className="size-4 shrink-0 text-brand" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          )}
         </Reveal>
       )}
 
