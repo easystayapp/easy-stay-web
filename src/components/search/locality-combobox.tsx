@@ -1,7 +1,7 @@
 "use client";
 
 import { BedDouble, Building2, House, MapPin, TrendingUp } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { useCatalog } from "@/hooks/use-catalog";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/domain/search";
@@ -21,6 +21,7 @@ interface AreaOption {
 /** "PGs in Gachibowli": the area plus a property-type filter. */
 interface TypeOption {
   kind: "type";
+  /** "" = the whole city (default shortcuts before anything is typed). */
   area: string;
   type: PropertyType;
 }
@@ -76,7 +77,12 @@ function areasFor(localities: string[], popular: string[], query: string, max: n
  * selected in the current search come first.
  */
 function optionsFor(localities: string[], popular: string[], query: string, shortcuts: PropertyType[] | null): Option[] {
-  if (!shortcuts || !query.trim()) return areasFor(localities, popular, query, MAX_AREAS);
+  if (!shortcuts) return areasFor(localities, popular, query, MAX_AREAS);
+  if (!query.trim()) {
+    // Defaults before typing: popular areas, then every type across the city.
+    const areas = areasFor(localities, popular, "", 5);
+    return [...areas, ...shortcuts.map<TypeOption>((type) => ({ kind: "type", area: "", type }))];
+  }
   const areas = areasFor(localities, popular, query, 4);
   const top = areas[0];
   return top ? [...areas, ...shortcuts.map<TypeOption>((type) => ({ kind: "type", area: top.area, type }))] : areas;
@@ -205,47 +211,57 @@ export function LocalityCombobox({
             listClassName,
           )}
         >
-          {!value.trim() && (
-            <li role="presentation" className="px-3 pt-1.5 pb-1 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-              Popular in {city}
-            </li>
-          )}
           {options.map((o, i) => {
             const Icon = o.kind === "type" ? TYPE_ICON[o.type] : o.popular ? TrendingUp : MapPin;
-            const firstShortcut = o.kind === "type" && options[i - 1]?.kind !== "type";
+            const prev = options[i - 1];
+            const empty = !value.trim();
+            // Section headings before typing; a divider before the type shortcuts after.
+            const heading =
+              empty && !prev && o.kind === "area" ? `Popular in ${city}` : empty && o.kind === "type" && prev?.kind !== "type" ? "Browse by type" : null;
+            const divider = !empty && o.kind === "type" && prev?.kind !== "type";
+            const where = o.kind === "type" ? o.area || city : null;
             return (
-              <li
-                key={o.kind === "type" ? `type-${o.type}` : o.area}
-                id={optionId(i)}
-                role="option"
-                aria-selected={i === active}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => pick(o)}
-                className={cn(
-                  "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 py-2 text-sm text-ink",
-                  i === active && "bg-blush",
-                  firstShortcut && "mt-1 border-t border-line pt-3",
+              <Fragment key={o.kind === "type" ? `type-${o.type}` : o.area}>
+                {heading && (
+                  <li
+                    role="presentation"
+                    className={cn("px-3 pt-1.5 pb-1 text-[11px] font-bold tracking-wide text-muted-foreground uppercase", prev && "mt-1 border-t border-line pt-3")}
+                  >
+                    {heading}
+                  </li>
                 )}
-              >
-                <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
-                  <Icon aria-hidden className="size-4" />
-                </span>
-                {o.kind === "type" ? (
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-semibold">
-                      {TYPE_NOUN[o.type]} in <b className="font-extrabold">{o.area}</b>
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">Property type · {city}</span>
+                <li
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={i === active}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => pick(o)}
+                  className={cn(
+                    "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 py-2 text-sm text-ink",
+                    i === active && "bg-blush",
+                    divider && "mt-1 border-t border-line pt-3",
+                  )}
+                >
+                  <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", i === active ? "bg-white text-brand" : "bg-surface text-muted-foreground")}>
+                    <Icon aria-hidden className="size-4" />
                   </span>
-                ) : (
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-semibold">
-                      <Highlight text={o.area} query={value} />
+                  {o.kind === "type" ? (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold">
+                        {TYPE_NOUN[o.type]} in <b className="font-extrabold">{where}</b>
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">{o.area ? `Property type · ${city}` : "All areas"}</span>
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${city}${o.popular ? " · Popular" : ""}`}</span>
-                  </span>
-                )}
-              </li>
+                  ) : (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold">
+                        <Highlight text={o.area} query={value} />
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${city}${o.popular ? " · Popular" : ""}`}</span>
+                    </span>
+                  )}
+                </li>
+              </Fragment>
             );
           })}
         </ul>
