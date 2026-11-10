@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContactSheet } from "@/components/property/contact-sheet";
 import { Gallery } from "@/components/property/gallery";
+import { LocationMap } from "@/components/property/location-map";
 import { SaveButton } from "@/components/property/property-card";
 import { RatingsSection } from "@/components/property/ratings-section";
 import { useAuth } from "@/hooks/use-auth";
@@ -257,6 +258,8 @@ export function PropertyDetails() {
               <p className="text-[15px] leading-relaxed whitespace-pre-line text-muted-2">{p.description}</p>
             </section>
           )}
+
+          <LocationMap title={p.title} address={p.address} locality={p.locality} city={p.city} geo={p.geo} />
 
           <RatingsSection ratings={ratings} foodServed={p.food} onRate={rate} />
 
