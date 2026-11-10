@@ -2,10 +2,7 @@
 
 import {
   GoogleAuthProvider,
-  linkWithPhoneNumber,
   onIdTokenChanged,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
   signInWithPopup,
   signOut as fbSignOut,
   type User as FirebaseUser,
@@ -16,8 +13,6 @@ import { api } from "@/lib/client/api";
 import { firebaseAuth, firebaseConfigured } from "@/lib/client/firebase";
 import type { Me } from "@/types/api";
 
-export type ConfirmCode = (code: string) => Promise<void>;
-
 export interface AuthContextValue {
   /** Firebase has reported the initial auth state. */
   ready: boolean;
@@ -27,11 +22,6 @@ export interface AuthContextValue {
   me: Me | null;
   refreshMe: () => Promise<Me | null>;
   signInWithGoogle: () => Promise<void>;
-  /**
-   * Sends an OTP. `link` attaches the number to the signed-in account (owner
-   * verification); `signin` signs in with it. Resolves to a code confirmer.
-   */
-  sendOtp: (phoneE164: string, container: HTMLElement, mode: "signin" | "link") => Promise<ConfirmCode>;
   signOut: () => Promise<void>;
   /** Opens the login dialog if needed; resolves true once signed in. */
   requireLogin: (copy?: LoginCopy) => Promise<boolean>;
@@ -81,31 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await refreshMe();
   }, [refreshMe]);
 
-  const sendOtp = useCallback(
-    async (phone: string, container: HTMLElement, mode: "signin" | "link"): Promise<ConfirmCode> => {
-      const auth = firebaseAuth();
-      const host = document.createElement("div");
-      container.appendChild(host);
-      const verifier = new RecaptchaVerifier(auth, host, { size: "invisible" });
-      try {
-        const confirmation =
-          mode === "link" && auth.currentUser
-            ? await linkWithPhoneNumber(auth.currentUser, phone, verifier)
-            : await signInWithPhoneNumber(auth, phone, verifier);
-        return async (code: string) => {
-          const cred = await confirmation.confirm(code);
-          // Refresh so the ID token carries the verified phone_number claim.
-          await cred.user.getIdToken(true);
-          await refreshMe();
-        };
-      } finally {
-        verifier.clear();
-        host.remove();
-      }
-    },
-    [refreshMe],
-  );
-
   const signOut = useCallback(async () => {
     if (configured) await fbSignOut(firebaseAuth());
     setMe(null);
@@ -130,8 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ready, configured, user, me, refreshMe, signInWithGoogle, sendOtp, signOut, requireLogin }),
-    [ready, configured, user, me, refreshMe, signInWithGoogle, sendOtp, signOut, requireLogin],
+    () => ({ ready, configured, user, me, refreshMe, signInWithGoogle, signOut, requireLogin }),
+    [ready, configured, user, me, refreshMe, signInWithGoogle, signOut, requireLogin],
   );
 
   return (

@@ -11,8 +11,6 @@ import { getAdminApp } from "./firebase-admin";
 export interface AuthUser {
   uid: string;
   email: string | null;
-  /** Verified phone number (E.164), present after OTP sign-in or linking. */
-  phone: string | null;
   name: string | null;
   picture: string | null;
 }
@@ -25,7 +23,6 @@ export async function verifyBearer(header: string | null): Promise<AuthUser | nu
     return {
       uid: t.uid,
       email: t.email ?? null,
-      phone: t.phone_number ?? null,
       name: (t.name as string | undefined) ?? null,
       picture: t.picture ?? null,
     };

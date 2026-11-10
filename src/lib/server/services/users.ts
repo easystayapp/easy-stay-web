@@ -1,4 +1,4 @@
-import type { Me, OwnerSettingsUpdate, ProfileUpdate } from "@/types/api";
+import type { Me, OwnerSettingsUpdate, OwnerToolsRequest, ProfileUpdate } from "@/types/api";
 import { DomainError } from "@/lib/domain/errors";
 import { normalizeIndianMobile } from "@/lib/domain/format";
 import { CONTACT_METHODS, type OwnerSettings, type User } from "@/lib/domain/types";
@@ -6,30 +6,24 @@ import type { AuthUser } from "../auth";
 import type { Repositories } from "../repositories";
 import { toMe } from "./mappers";
 
-/** uid|phone pairs already synced in this process, to skip repeat reads. */
+/** Accounts already ensured in this process, to skip repeat reads. */
 const synced = new Set<string>();
 
-/**
- * Creates the account on first sign-in and keeps the verified phone in sync
- * with the auth provider (e.g. after linking a number for owner tools).
- */
+/** Creates the account on first sign-in. */
 export async function ensureUser(repos: Repositories, auth: AuthUser): Promise<void> {
-  const key = `${auth.uid}|${auth.phone ?? ""}`;
+  const key = auth.uid;
   if (synced.has(key)) return;
   const now = new Date();
-  const user = await repos.users.createIfMissing({
+  await repos.users.createIfMissing({
     id: auth.uid,
     displayName: auth.name?.trim() || "",
     email: auth.email,
-    phone: auth.phone,
+    phone: null,
     photoUrl: auth.picture,
     owner: null,
     createdAt: now,
     updatedAt: now,
   });
-  if (user.phone !== auth.phone && auth.phone) {
-    await repos.users.update(auth.uid, { phone: auth.phone, updatedAt: now });
-  }
   synced.add(key);
 }
 
@@ -61,15 +55,20 @@ export async function updateProfile(repos: Repositories, auth: AuthUser, body: P
   return getMe(repos, auth);
 }
 
+function contactNumber(value: unknown): string {
+  const n = typeof value === "string" ? normalizeIndianMobile(value) : null;
+  if (!n) throw new DomainError("invalid_input", "Enter a valid 10-digit mobile number.", { contactPhone: "invalid" });
+  return n;
+}
+
 /**
- * Owner tools turn on only for a verified mobile number. The number comes
- * from the auth provider's verified claim, never from the request body.
+ * Turns owner tools on with the mobile number seekers should call. Turning
+ * them back on may reuse the number already saved.
  */
-export async function enableOwnerTools(repos: Repositories, auth: AuthUser): Promise<Me> {
-  if (!auth.phone) {
-    throw new DomainError("not_eligible", "Verify your mobile number to turn on owner tools.");
-  }
+export async function enableOwnerTools(repos: Repositories, auth: AuthUser, body: OwnerToolsRequest): Promise<Me> {
   const user = await getUser(repos, auth);
+  const phone =
+    body.contactPhone === undefined && user.owner?.contactPhone ? user.owner.contactPhone : contactNumber(body.contactPhone);
   const now = new Date();
   const owner: OwnerSettings = {
     contactMethod: "both",
@@ -79,9 +78,10 @@ export async function enableOwnerTools(repos: Repositories, auth: AuthUser): Pro
     ...user.owner,
     enabled: true,
     enabledAt: user.owner?.enabledAt ?? now,
-    contactPhone: auth.phone,
+    contactPhone: phone,
   };
-  await repos.users.update(auth.uid, { owner, phone: auth.phone, updatedAt: now });
+  if (owner.whatsappPhone === phone) owner.whatsappPhone = null;
+  await repos.users.update(auth.uid, { owner, phone, updatedAt: now });
   return getMe(repos, auth);
 }
 
@@ -108,6 +108,8 @@ export async function updateOwnerSettings(
   const user = await requireOwner(repos, auth);
   const next: OwnerSettings = { ...user.owner, notify: { ...user.owner.notify } };
 
+  if (body.contactPhone !== undefined) next.contactPhone = contactNumber(body.contactPhone);
+
   if (body.whatsappPhone !== undefined) {
     if (body.whatsappPhone === null || body.whatsappPhone === "") next.whatsappPhone = null;
     else {
@@ -129,6 +131,6 @@ export async function updateOwnerSettings(
       if (typeof body.notify[k] === "boolean") next.notify[k] = body.notify[k]!;
     }
   }
-  await repos.users.update(auth.uid, { owner: next, updatedAt: new Date() });
+  await repos.users.update(auth.uid, { owner: next, phone: next.contactPhone, updatedAt: new Date() });
   return getMe(repos, auth);
 }

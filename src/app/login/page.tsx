@@ -17,7 +17,7 @@ function LoginView() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const { ready, user, me } = useAuth();
-  const [step, setStep] = useState<"choose" | "code" | "name">("choose");
+  const [step, setStep] = useState<"choose" | "name">("choose");
 
   useEffect(() => {
     if (ready && user && me?.displayName && step !== "name") router.replace(next);

@@ -21,7 +21,7 @@ export function ProfileShell({ me, children }: { me: Me; children: ReactNode }) 
           { href: "/my-listings", label: "My listings" },
           { href: "/notifications", label: "Notifications" },
         ]
-      : [{ href: "/owner/verify", label: "Own a property?" }]),
+      : [{ href: "/owner/setup", label: "Own a property?" }]),
     { href: "/saved", label: "Saved properties" },
     { href: "/profile/ratings", label: "My ratings" },
   ];

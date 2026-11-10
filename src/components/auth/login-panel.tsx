@@ -9,7 +9,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ErrorNote } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
-import { PhoneOtpFlow } from "./phone-otp-flow";
 import type { LoginCopy } from "./login-dialog";
 
 export function GoogleMark() {
@@ -23,7 +22,7 @@ export function GoogleMark() {
   );
 }
 
-/** Google or mobile OTP, then a name prompt for phone-only accounts. */
+/** Google sign-in, then a name prompt if the account has no name yet. */
 export function LoginPanel({
   copy,
   step,
@@ -33,8 +32,8 @@ export function LoginPanel({
 }: {
   copy?: LoginCopy;
   inDialog?: boolean;
-  step: "choose" | "code" | "name";
-  onStep: (s: "choose" | "code" | "name") => void;
+  step: "choose" | "name";
+  onStep: (s: "choose" | "name") => void;
   onDone: () => void;
 }) {
   const { configured, signInWithGoogle, refreshMe } = useAuth();
@@ -80,7 +79,7 @@ export function LoginPanel({
       <form onSubmit={saveName} className="flex flex-col gap-5 pt-2" noValidate>
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[22px] font-extrabold tracking-tight">What should owners call you?</h2>
-          <p className="text-sm text-muted-foreground">Only your first name is shown on ratings. Your number is never shown.</p>
+          <p className="text-sm text-muted-foreground">Only your first name is shown on ratings.</p>
         </div>
         <Field>
           <FieldLabel htmlFor="login-name">Your name</FieldLabel>
@@ -97,14 +96,12 @@ export function LoginPanel({
   return (
     <div className="flex flex-col gap-5">
       <Image src="/brand/logo-mark.png" alt="EasyStay" width={44} height={39} className="h-auto w-11" />
-      {step === "choose" && (
-        <div className="flex flex-col gap-2">
-          <h2 aria-hidden={inDialog || undefined} className="text-[24px] leading-tight font-extrabold tracking-tight">
-            {copy?.title ?? "Login to connect directly with the property owner"}
-          </h2>
-          <p className="text-[15px] text-muted-foreground">{copy?.subtitle ?? "We'll bring you right back to this property."}</p>
-        </div>
-      )}
+      <div className="flex flex-col gap-2">
+        <h2 aria-hidden={inDialog || undefined} className="text-[24px] leading-tight font-extrabold tracking-tight">
+          {copy?.title ?? "Login to connect directly with the property owner"}
+        </h2>
+        <p className="text-[15px] text-muted-foreground">{copy?.subtitle ?? "We'll bring you right back to this property."}</p>
+      </div>
 
       {!configured ? (
         <ErrorNote>
@@ -112,21 +109,11 @@ export function LoginPanel({
         </ErrorNote>
       ) : (
         <>
-          {step === "choose" && (
-            <>
-              <Button variant="neutral" size="lg" block onClick={google} loading={busy} className="border-line-2">
-                {!busy && <GoogleMark />}
-                Continue with Google
-              </Button>
-              <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">
-                <span aria-hidden className="h-px flex-1 bg-line" />
-                or use your mobile
-                <span aria-hidden className="h-px flex-1 bg-line" />
-              </div>
-              {error && <ErrorNote>{error}</ErrorNote>}
-            </>
-          )}
-          <PhoneOtpFlow mode="signin" onVerified={finish} onStepChange={(s) => onStep(s === "code" ? "code" : "choose")} />
+          <Button variant="neutral" size="lg" block onClick={google} loading={busy} className="border-line-2">
+            {!busy && <GoogleMark />}
+            Continue with Google
+          </Button>
+          {error && <ErrorNote>{error}</ErrorNote>}
         </>
       )}
       <p className="text-center text-xs leading-relaxed text-muted-foreground">

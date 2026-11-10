@@ -1,6 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RequireOwner } from "@/components/auth/guards";
@@ -25,6 +24,7 @@ function SettingsForm({ me }: { me: Me }) {
   const router = useRouter();
   const toast = useToast();
   const { refreshMe } = useAuth();
+  const [contact, setContact] = useState(formatPhone(owner.contactPhone));
   const [whatsapp, setWhatsapp] = useState(owner.whatsappPhone ? formatPhone(owner.whatsappPhone) : "");
   const [method, setMethod] = useState<ContactMethod>(owner.contactMethod);
   const [greeting, setGreeting] = useState(owner.greeting ?? defaultGreeting("pg").replace(/\n/g, " "));
@@ -38,7 +38,7 @@ function SettingsForm({ me }: { me: Me }) {
     setBusy(true);
     setError(null);
     try {
-      await api.updateOwnerSettings({ whatsappPhone: whatsapp || null, contactMethod: method, greeting, notify });
+      await api.updateOwnerSettings({ contactPhone: contact, whatsappPhone: whatsapp || null, contactMethod: method, greeting, notify });
       await refreshMe();
       toast("Settings saved");
     } catch (err) {
@@ -69,23 +69,22 @@ function SettingsForm({ me }: { me: Me }) {
         <p className="text-sm text-muted-foreground">These apply to every property you list. You can still browse and contact other owners as usual.</p>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-extrabold">Verification</h2>
-        <p className="flex items-center gap-3 rounded-2xl bg-ok-bg px-4 py-3.5 text-sm text-ok">
-          <ShieldCheck aria-hidden className="size-5 shrink-0" />
-          <span>
-            <b>Mobile verified</b> · {formatPhone(owner.contactPhone)} · owner tools turned on
-          </span>
-        </p>
-      </section>
-
       <section className="flex flex-col gap-4 rounded-[22px] border border-line p-5">
         <h2 className="text-lg font-extrabold">How seekers contact you</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="contact-phone">Listing contact number</FieldLabel>
-            <Input id="contact-phone" className="bg-surface" value={formatPhone(owner.contactPhone)} readOnly />
-            <FieldDescription className="text-xs">Your verified number. Re-verify to change it.</FieldDescription>
+            <Input
+              id="contact-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              aria-describedby="contact-phone-hint"
+              required
+            />
+            <FieldDescription id="contact-phone-hint" className="text-xs">Seekers call this number. Hidden until they log in.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="wa-phone">WhatsApp number</FieldLabel>

@@ -27,7 +27,7 @@ export default function OwnerLandingPage() {
     setBusy(true);
     try {
       await signInWithGoogle();
-      router.push("/owner/verify");
+      router.push("/owner/setup");
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -56,12 +56,12 @@ export default function OwnerLandingPage() {
       </ul>
       <p className="flex gap-2.5 rounded-2xl bg-surface p-4 text-[13px] leading-relaxed text-muted-2">
         <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-brand" />
-        Listing tools are switched on for your account once we verify your mobile number. You can still browse and contact other owners.
+        Listing tools are switched on for your account once you add the mobile number seekers should call. You can still browse and contact other owners.
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
       {!ready ? null : user ? (
-        <ButtonLink href="/owner/verify" size="lg" block>
-          Continue — verify mobile number
+        <ButtonLink href="/owner/setup" size="lg" block>
+          Continue — add contact number
         </ButtonLink>
       ) : configured ? (
         <div className="flex flex-col gap-3">
@@ -69,9 +69,6 @@ export default function OwnerLandingPage() {
             {!busy && <GoogleMark />}
             Continue with Google
           </Button>
-          <ButtonLink href="/owner/verify" variant="text" size="sm" className="self-center">
-            Use my mobile number instead
-          </ButtonLink>
         </div>
       ) : (
         <ErrorNote>Sign-in isn&apos;t configured yet. Add your Firebase keys to .env.local.</ErrorNote>

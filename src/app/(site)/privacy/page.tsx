@@ -8,7 +8,7 @@ export default function PrivacyPage() {
     <ProsePage title="Privacy policy" intro="[Draft — have this reviewed by your legal advisor before launch.]">
       <h2>What we collect</h2>
       <ul>
-        <li>Your name, email (Google sign-in) and mobile number (OTP sign-in or owner verification).</li>
+        <li>Your name and email (Google sign-in), and the contact number you add as an owner.</li>
         <li>Listings you publish, places you save, owners you contact and ratings you give.</li>
         <li>A count of listing views, once per person or device per day. Who viewed a listing is never shown to owners.</li>
       </ul>

@@ -10,7 +10,7 @@ export default function HelpPage() {
       <p>No. Search, filters and listing details are open to everyone. Log in only to contact an owner, save or rate.</p>
       <h2>How do I list my property?</h2>
       <p>
-        Go to <b>List your property</b>, sign in and verify your mobile number to turn on owner tools. Then add your property —
+        Go to <b>List your property</b>, sign in with Google and add your contact number to turn on owner tools. Then add your property —
         type, sharing, rent, location, 3–5 photos and who it&apos;s available for.
       </p>
       <h2>How long does a listing stay live?</h2>

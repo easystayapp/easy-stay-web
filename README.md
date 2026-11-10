@@ -1,6 +1,6 @@
 # EasyStay
 
-Find your stay. Connect directly. Seekers browse PGs, hostels, rooms and flats without an account, then log in to call or WhatsApp the owner. Owners turn on **owner tools** on the same account (by verifying a mobile number) to list properties for 15 days at a time.
+Find your stay. Connect directly. Seekers browse PGs, hostels, rooms and flats without an account, then log in with Google to call or WhatsApp the owner. Owners turn on **owner tools** on the same account (by adding the mobile number seekers should call) to list properties for 15 days at a time.
 
 Built from the **EasyStay App Design** canvas (brand & UI kit, 24 mobile screens, 7 web pages).
 
@@ -8,7 +8,7 @@ Built from the **EasyStay App Design** canvas (brand & UI kit, 24 mobile screens
 |---|---|
 | Framework | Next.js 16 (App Router, `src/` layout), React 19, TypeScript 6 |
 | UI | Tailwind CSS 4 + shadcn/ui (Radix), Plus Jakarta Sans, lucide icons |
-| Auth | Firebase Auth — Google and phone OTP |
+| Auth | Firebase Auth — Google sign-in |
 | Data | Cloud Firestore through a repository layer (swappable) |
 | Media | Cloudflare R2 (S3 API, direct browser uploads via presigned URLs) |
 
@@ -36,8 +36,7 @@ FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
 STORAGE_BACKEND=memory              # until R2 is configured
 ```
 
-Phone OTP codes from the Auth emulator are shown in its UI (http://127.0.0.1:4000/auth) or at
-`/emulator/v1/projects/demo-easystay/verificationCodes`.
+The Auth emulator's sign-in popup lets you create test Google accounts.
 
 Demo listings use bundled CC0 photos from Wikimedia Commons (`public/demo/photos`, sources in `CREDITS.txt`). Re-running `npm run seed` adds them to existing demo listings that have none.
 
@@ -51,15 +50,21 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
 | `npm run lint` / `typecheck` | ESLint 9 (flat config) / `tsc --noEmit` |
 | `npm run seed` | Demo data through the repository layer (`--force` to add again) |
 | `npm run emulators` | Firebase Auth + Firestore emulators |
-| `npm run check:r2` | Verifies Cloudflare R2 credentials: presigned upload, stat, delete |
+| `npm run check:firebase` | Verifies the live Firebase setup: config, API key, sign-in providers, service account, Firestore read/write |
+| `npm run deploy:firestore` | Deploys `firestore.rules` and `firestore.indexes.json` to the project in `.env.local` |
+| `npm run check:r2` | Verifies Cloudflare R2: presigned upload, public URL, stat, delete, CORS |
 
 ## Production setup
 
 ### Firebase (Auth + Firestore)
 
-1. Create a Firebase project. **Authentication → Sign-in method**: enable **Google** and **Phone**. Add your domains under *Authorized domains*.
-2. Create a Firestore database. Deploy rules and indexes: `npx firebase-tools deploy --only firestore`. The rules deny all direct client access — every read and write goes through the API.
-3. **Project settings → Service accounts → Generate key**. Put `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` (keep the `\n` escapes) in the server env, and the web app config in the `NEXT_PUBLIC_FIREBASE_*` vars.
+1. Create a Firebase project. **Authentication → Sign-in method**: enable **Google**. Add your domains under *Authorized domains*.
+2. Create a Firestore database (Native mode).
+3. **Project settings → Service accounts → Generate new private key**. Save the JSON as `service-account.json` in the project folder (git-ignored) and set `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json` — or put `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` (keep the `\n` escapes) in the env. Put the web app config in the `NEXT_PUBLIC_FIREBASE_*` vars.
+4. `npm run deploy:firestore` deploys the rules and the composite indexes search needs (indexes take a few minutes to build). The rules deny all direct client access — every read and write goes through the API.
+5. `npm run check:firebase` should print “Firebase is configured correctly.”
+
+The `.env.local` template walks through every value. To go back to the emulators: `cp .env.emulators.local .env.local`.
 
 ### Cloudflare R2 (photos and media)
 
@@ -71,7 +76,7 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
    ```json
    [
      {
-       "AllowedOrigins": ["http://localhost:3000", "https://your-domain.com"],
+       "AllowedOrigins": ["http://localhost:3000", "http://localhost:3002", "https://your-domain.com"],
        "AllowedMethods": ["PUT"],
        "AllowedHeaders": ["content-type", "cache-control"],
        "MaxAgeSeconds": 3600
@@ -112,12 +117,12 @@ scripts/               seed, check-r2
 | 03 Search | `/search` |
 | 04 Filters · 05 Results · W2 | `/properties` (sidebar on desktop, sheet on phones) |
 | 06 Details + ratings · W3 | `/properties/[id]` |
-| 07 Login · 08 OTP · W4 | login sheet over the current page; `/login?next=` |
+| 07 Login · W4 | Google login sheet over the current page; `/login?next=` |
 | 09 Back on property · WhatsApp | contact sheet on `/properties/[id]` |
 | 10 / 23 Profile · W7 | `/profile`, `/profile/owner-settings`, `/profile/ratings` |
 | 11 Saved | `/saved` |
 | 11b Rate property | `/properties/[id]/rate` |
-| 12 Owner sign-in · 13 Verify phone | `/owner`, `/owner/verify` |
+| 12 Owner sign-in · 13 Contact number | `/owner`, `/owner/setup` |
 | 14 My listings · W5 | `/my-listings` (with 20 Mark rented and 22 Repost dialogs) |
 | 15 Add · 16 Preview · W6 | `/my-listings/new` |
 | 17 Published | `/my-listings/[id]/published` |
@@ -131,7 +136,7 @@ All collections are top level, so each maps 1:1 to a table in any other database
 
 | Collection | Id | Holds |
 |---|---|---|
-| `users` | auth uid | name, email, verified phone, `owner` settings (enabled, contact number, WhatsApp, contact method, greeting, notification prefs) |
+| `users` | auth uid | name, email, phone, `owner` settings (enabled, contact number, WhatsApp, contact method, greeting, notification prefs) |
 | `properties` | auto | owner, type, sharing, title, rent, deposit, location, photos (R2 keys), availability, amenities, status, `publishedAt`/`expiresAt`, `viewCount`, `ratingSummary` |
 | `ratings` | `{propertyId}_{userId}` | relation, per-factor scores, combined, review — one per person |
 | `contacts` | `{propertyId}_{userId}` | who contacted which owner, by which channel — gates rating |

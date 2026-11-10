@@ -13,6 +13,7 @@ import type {
   OwnerListingsResponse,
   FeaturedStay,
   OwnerSettingsUpdate,
+  OwnerToolsRequest,
   ProfileUpdate,
   PropertyDetail,
   PropertyStats,
@@ -93,7 +94,7 @@ export const api = {
   /* account */
   me: () => request<Me>("GET", "/api/me"),
   updateProfile: (body: ProfileUpdate) => request<Me>("PATCH", "/api/me", body),
-  enableOwnerTools: () => request<Me>("POST", "/api/me/owner-tools"),
+  enableOwnerTools: (body: OwnerToolsRequest) => request<Me>("POST", "/api/me/owner-tools", body),
   disableOwnerTools: () => request<Me>("DELETE", "/api/me/owner-tools"),
   updateOwnerSettings: (body: OwnerSettingsUpdate) => request<Me>("PATCH", "/api/me/owner-settings", body),
 
@@ -134,15 +135,10 @@ function firebaseErrorMessage(code: string): string {
     "auth/popup-closed-by-user": "Sign-in was cancelled.",
     "auth/cancelled-popup-request": "Sign-in was cancelled.",
     "auth/popup-blocked": "Your browser blocked the sign-in window. Allow pop-ups and try again.",
-    "auth/invalid-phone-number": "Enter a valid 10-digit mobile number.",
-    "auth/invalid-verification-code": "That code is incorrect. Check the SMS and try again.",
-    "auth/code-expired": "That code has expired. Request a new one.",
     "auth/too-many-requests": "Too many attempts. Please wait a few minutes and try again.",
-    "auth/credential-already-in-use": "This mobile number is already linked to another EasyStay account.",
-    "auth/account-exists-with-different-credential": "This number is already linked to another EasyStay account.",
-    "auth/provider-already-linked": "A mobile number is already verified on this account.",
+    "auth/account-exists-with-different-credential": "This email is already used by another EasyStay account.",
+    "auth/unauthorized-domain": "Sign-in isn't allowed on this domain yet. Add it under Firebase Authentication → Settings → Authorized domains.",
     "auth/network-request-failed": "Network error. Check your connection and try again.",
-    "auth/captcha-check-failed": "Verification failed. Please try again.",
   };
   return map[code] ?? "Sign-in failed. Please try again.";
 }

@@ -56,8 +56,8 @@ export function RequireOwner({ children }: { children: (me: Me) => ReactNode }) 
             <EmptyState
               icon={<KeyRound className="size-7" />}
               title="Turn on owner tools"
-              body="Verify your mobile number to list properties. You'll keep browsing and contacting owners as before."
-              action={<ButtonLink href="/owner/verify" size="sm">Turn on owner tools</ButtonLink>}
+              body="Add the mobile number seekers should call to list properties. You'll keep browsing and contacting owners as before."
+              action={<ButtonLink href="/owner/setup" size="sm">Turn on owner tools</ButtonLink>}
             />
           </div>
         )

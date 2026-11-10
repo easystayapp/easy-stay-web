@@ -95,7 +95,7 @@ function PersonalDetails({ me }: { me: Me }) {
       </div>
 
       {!me.ownerToolsOn && (
-        <Link href="/owner/verify" className="flex items-center gap-4 rounded-[20px] border-[1.5px] border-blush-line bg-blush p-4 text-ink hover:text-ink">
+        <Link href="/owner/setup" className="flex items-center gap-4 rounded-[20px] border-[1.5px] border-blush-line bg-blush p-4 text-ink hover:text-ink">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-white text-brand">
             <KeyRound aria-hidden className="size-[22px]" />
           </span>

@@ -148,7 +148,13 @@ export interface ProfileUpdate {
   displayName?: string;
 }
 
+/** Turning owner tools on: the number seekers call (optional when re-enabling). */
+export interface OwnerToolsRequest {
+  contactPhone?: string;
+}
+
 export interface OwnerSettingsUpdate {
+  contactPhone?: string;
   whatsappPhone?: string | null;
   contactMethod?: ContactMethod;
   greeting?: string | null;

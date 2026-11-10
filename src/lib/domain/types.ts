@@ -120,7 +120,7 @@ export interface OwnerNotificationPrefs {
 export interface OwnerSettings {
   enabled: boolean;
   enabledAt: Date | null;
-  /** Verified mobile number seekers call. */
+  /** Mobile number seekers call (E.164). */
   contactPhone: string;
   whatsappPhone: string | null;
   contactMethod: ContactMethod;
@@ -133,7 +133,7 @@ export interface User {
   id: ID;
   displayName: string;
   email: string | null;
-  /** Verified phone (E.164) from the auth provider, if any. */
+  /** Mobile number (E.164) the user gave us, if any. */
   phone: string | null;
   photoUrl: string | null;
   owner: OwnerSettings | null;

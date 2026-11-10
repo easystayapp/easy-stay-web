@@ -14,7 +14,7 @@ export default function AboutPage() {
       <p>Browse and filter freely without an account. Log in only when you want to contact an owner, save a place or rate it.</p>
       <h2>For owners</h2>
       <p>
-        Turn on owner tools on your regular account by verifying your mobile number. Listings are free, stay live for 15 days and
+        Turn on owner tools on your regular account by adding the mobile number seekers should call. Listings are free, stay live for 15 days and
         can be reposted in one tap.
       </p>
     </ProsePage>

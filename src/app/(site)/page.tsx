@@ -235,7 +235,7 @@ export default function HomePage() {
         <ol className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
           {[
             ["Browse freely", "Search, filter and open any listing without an account. Only available places are shown."],
-            ["Log in to connect", "Google or mobile OTP — and you're right back on the property you picked."],
+            ["Log in to connect", "One tap with Google — and you're right back on the property you picked."],
             ["Call or WhatsApp", "Talk to the owner directly, arrange a visit, and rate the place afterwards."],
           ].map(([t, b], i) => (
             <li key={t} className="flex flex-col gap-2.5 rounded-[22px] bg-surface p-6">
