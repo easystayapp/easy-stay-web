@@ -46,3 +46,6 @@ firebase-export-*/
 
 # Firebase service-account key (never commit)
 service-account*.json
+
+# vercel
+.vercel

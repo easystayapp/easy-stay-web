@@ -52,6 +52,7 @@ No Firebase at all? `DATA_BACKEND=memory` serves seeded demo data from memory (b
 | `npm run seed:content` | Cities, home/welcome content, greetings and pages (creates missing; `--dry-run`, `--overwrite`) |
 | `npm run emulators` | Firebase Auth + Firestore emulators |
 | `npm run check:firebase` | Verifies the live Firebase setup: config, API key, sign-in providers, service account, Firestore read/write |
+| `npm run vercel:env` | Copies settings from `.env.local` + `service-account.json` to the linked Vercel project (`--dry-run`, `--target=preview`, `--site-url=…`, `--public-url=…`) |
 | `npm run deploy:firestore` | Deploys `firestore.rules` and `firestore.indexes.json` to the project in `.env.local` |
 | `npm run check:r2` | Verifies Cloudflare R2: presigned upload, public URL, stat, delete, CORS |
 
@@ -86,15 +87,18 @@ The `.env.local` template walks through every value. To go back to the emulators
    ```
 5. `npm run check:r2` should print “Cloudflare R2 is configured correctly.”
 
-## Deploying
+## Deploying to Vercel
 
-Any Node 20.9+ host works (`npm run build`, then `npm start`). Set the same variables as `.env.local` on the host. Where there is no key file, send `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` (keep the `\n` escapes) instead of `GOOGLE_APPLICATION_CREDENTIALS`. Run the server close to the database (Firestore is in `asia-south1`).
+Server functions run in **Mumbai (`bom1`, see `vercel.json`)**, next to the Firestore database in `asia-south1`. Vercel has no key file, so the server reads `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY` instead of `GOOGLE_APPLICATION_CREDENTIALS` (don't set that one on Vercel).
 
-After the first deploy, allow the production domain everywhere it's checked:
-- Firebase → Authentication → Settings → Authorized domains: add your domain.
-- R2 bucket CORS: add `https://your-domain` to `AllowedOrigins`.
-- Google Cloud → OAuth consent screen: app name, support email, then **Publish**.
-- Verify with `CHECK_ORIGINS=https://your-domain npm run check:r2`, then sign in, turn on owner tools and add a listing with photos.
+1. `npx vercel login` (as the Vercel account owner: Hobby blocks deploys by other commit authors), then `npx vercel link`.
+2. `npm run vercel:env -- --dry-run`, then `npm run vercel:env -- --site-url=https://your-domain` copies the settings from `.env.local` and `service-account.json` without printing secrets. R2 is skipped with a warning if it isn't configured.
+3. Redeploy (`npx vercel deploy --prod`, or push to `main`).
+4. Allow the production domain everywhere it's checked:
+   - Firebase → Authentication → Settings → Authorized domains: add `your-app.vercel.app` and your custom domain.
+   - R2 bucket CORS: add `https://your-app.vercel.app` and your custom domain to `AllowedOrigins`.
+   - Google Cloud → OAuth consent screen: app name, support email, then **Publish**.
+5. `npm run deploy:firestore` once for the composite indexes, then verify: sign in, turn on owner tools and add a listing with photos.
 
 Before real users: give R2 a custom domain (r2.dev is rate-limited), use an R2 token scoped to the one bucket, and rotate any key that has been shared.
 
