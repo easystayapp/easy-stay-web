@@ -28,13 +28,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `${p.title} — ${type} in ${p.locality}, ${p.city}`;
   const summary = `${SHARING_LABEL[p.sharing]} ${type} for ${GENDER_LABEL[p.availableFor].toLowerCase()} in ${p.locality}, ${p.city}. ${formatRupees(p.rent)}/month. Contact the owner directly on ${SITE_NAME}.`;
   const description = p.description ? `${summary} ${p.description}`.slice(0, 300) : summary;
-  const images = p.photos.slice(0, 4).map((url) => ({ url, alt: p.title }));
   return {
     title,
     description,
     alternates: { canonical: `/properties/${id}` },
-    openGraph: { type: "website", url: absoluteUrl(`/properties/${id}`), title, description, images },
-    twitter: { card: "summary_large_image", title, description, images: images.slice(0, 1).map((i) => i.url) },
+    // Share image: the generated card in ./opengraph-image.tsx (photo, rent, area, rating).
+    openGraph: { type: "website", url: absoluteUrl(`/properties/${id}`), title, description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
