@@ -8,6 +8,8 @@ import { cityLanding } from "@/lib/server/services/landing";
 
 /** Rebuilt at most every 10 minutes, so new listings show up without a deploy. */
 export const revalidate = 600;
+/** Pages are built on first visit, then cached at the edge and refreshed in the background (ISR). */
+export const generateStaticParams = async () => [];
 
 const load = cache(async (city: string) => cityLanding(await getRepositories(), city));
 

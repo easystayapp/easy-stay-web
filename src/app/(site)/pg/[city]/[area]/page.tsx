@@ -7,6 +7,8 @@ import { getRepositories } from "@/lib/server/repositories";
 import { areaLanding } from "@/lib/server/services/landing";
 
 export const revalidate = 600;
+/** Pages are built on first visit, then cached at the edge and refreshed in the background (ISR). */
+export const generateStaticParams = async () => [];
 
 const load = cache(async (city: string, area: string) => areaLanding(await getRepositories(), city, area));
 
