@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { emptyFilters } from "@/lib/domain/search";
 import { getRepositories } from "@/lib/server/repositories";
 import { landingIndex } from "@/lib/server/services/landing";
+import { GUIDES } from "@/content/guides";
 import { absoluteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -12,6 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: absoluteUrl("/properties"), lastModified: now, changeFrequency: "hourly", priority: 0.9 },
+    { url: absoluteUrl("/guides"), changeFrequency: "weekly", priority: 0.6 },
+    ...GUIDES.map((g) => ({ url: absoluteUrl(`/guides/${g.slug}`), lastModified: new Date(g.updated), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...["about", "help", "terms", "privacy"].map((p) => ({ url: absoluteUrl(`/${p}`), changeFrequency: "monthly" as const, priority: 0.3 })),
   ];
   try {

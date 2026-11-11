@@ -1,6 +1,7 @@
 import { ChevronRight, MapPin } from "lucide-react";
 import Link from "next/link";
 import { PropertyCard } from "@/components/property/property-card";
+import { GUIDES } from "@/content/guides";
 import { formatRupees } from "@/lib/domain/format";
 import type { Landing } from "@/lib/server/services/landing";
 import { absoluteUrl, jsonLd } from "@/lib/seo";
@@ -161,6 +162,14 @@ export function LandingPage({ l }: { l: Landing }) {
           ))}
         </section>
       )}
+      <section aria-labelledby="guides-title" className="flex flex-col gap-3">
+        <h2 id="guides-title" className="text-[22px] font-extrabold tracking-tight">Before you rent</h2>
+        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+          {GUIDES.filter((g) => !g.liveCity || g.liveCity.city === l.city.id).map((g) => (
+            <li key={g.slug}><Link href={`/guides/${g.slug}`}>{g.title}</Link></li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

@@ -45,6 +45,7 @@ export function SiteFooter() {
           <li><Link href={find({ city, type: "room" })} className={linkClass}>Rooms</Link></li>
           <li><Link href={find({ city, type: "flat" })} className={linkClass}>Flats</Link></li>
           <li><Link href="/saved" className={linkClass}>Saved</Link></li>
+          <li><Link href="/guides" className={linkClass}>Renting guides</Link></li>
         </Column>
 
         <Column title="Cities">
