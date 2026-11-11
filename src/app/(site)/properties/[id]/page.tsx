@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import { GENDER_LABEL, PROPERTY_TYPE_SHORT, SHARING_LABEL } from "@/lib/domain/catalog";
 import { formatRupees } from "@/lib/domain/format";
+import Link from "next/link";
+import { areaName, slugify } from "@/lib/domain/landing";
 import { getRepositories } from "@/lib/server/repositories";
+import { getCatalog } from "@/lib/server/services/content";
 import { getPropertyDetail } from "@/lib/server/services/properties";
 import { absoluteUrl, jsonLd, SITE_NAME } from "@/lib/seo";
 import { PropertyDetails } from "./property-details";
@@ -54,10 +57,38 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         aggregateRating: { "@type": "AggregateRating", ratingValue: Number(p.rating.average.toFixed(1)), ratingCount: p.rating.count, bestRating: 5, worstRating: 1 },
       }),
     };
+  // City / area landing pages this listing belongs to (breadcrumbs + internal links).
+  const city = p ? (await getCatalog(await getRepositories())).cities.find((c) => c.label.toLowerCase() === p.city.toLowerCase()) : null;
+  const area = p ? areaName(p.locality) : "";
+  const areaPath = city && slugify(area) ? `/pg/${city.id}/${slugify(area)}` : null;
+  const crumbs =
+    p && city
+      ? [
+          { name: "Home", path: "/" },
+          { name: `PG in ${city.label}`, path: `/pg/${city.id}` },
+          ...(areaPath ? [{ name: area, path: areaPath }] : []),
+          { name: p.title, path: `/properties/${id}` },
+        ]
+      : null;
+  const breadcrumbLd = crumbs && {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: absoluteUrl(c.path) })),
+  };
+
   return (
     <>
-      {ld && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />}
+      {ld && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbLd ? [ld, breadcrumbLd] : ld) }} />}
       <PropertyDetails />
+      {city && (
+        <nav aria-label="More places nearby" className="container-page pb-10">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-surface px-5 py-4 text-sm">
+            <span className="font-bold">Explore more:</span>
+            {areaPath && <Link href={areaPath}>PGs & hostels in {area}</Link>}
+            <Link href={`/pg/${city.id}`}>All PGs in {city.label}</Link>
+          </div>
+        </nav>
+      )}
     </>
   );
 }

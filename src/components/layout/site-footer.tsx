@@ -50,8 +50,8 @@ export function SiteFooter() {
         <Column title="Cities">
           {cities.map((c) => (
             <li key={c.id}>
-              <Link href={find({ city: c.label })} className={linkClass}>
-                {c.label}
+              <Link href={`/pg/${c.id}`} className={linkClass}>
+                PG in {c.label}
               </Link>
             </li>
           ))}

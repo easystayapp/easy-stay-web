@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
 import { emptyFilters } from "@/lib/domain/search";
 import { getRepositories } from "@/lib/server/repositories";
+import { landingIndex } from "@/lib/server/services/landing";
 import { absoluteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
 
-/** Home, browse page, info pages and every live listing (with its photos). Refreshed hourly. */
+/** Home, browse page, city/area landing pages, info pages and every live listing (with photos). Refreshed hourly. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [
@@ -15,6 +16,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
   try {
     const repos = await getRepositories();
+    // Landing pages: every city, and every area that has at least one live listing.
+    for (const c of await landingIndex(repos)) {
+      if (!c.areas.length) continue; // no live listings: the page is noindex, so keep it out
+      entries.push({ url: absoluteUrl(`/pg/${c.city}`), lastModified: c.updated ?? now, changeFrequency: "daily", priority: 0.85 });
+      for (const a of c.areas) {
+        entries.push({ url: absoluteUrl(`/pg/${c.city}/${a}`), lastModified: c.updated ?? now, changeFrequency: "daily", priority: 0.8 });
+      }
+    }
     const live = await repos.properties.findCandidates(emptyFilters(""), 5000);
     const t = now.getTime();
     for (const p of live) {
