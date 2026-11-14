@@ -26,24 +26,28 @@ export const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   pg: "PG / Hostel",
   room: "Room",
   flat: "Flat",
+  hotel: "Hotel",
 };
 
 export const PROPERTY_TYPE_SHORT: Record<PropertyType, string> = {
   pg: "PG",
   room: "Room",
   flat: "Flat",
+  hotel: "Hotel",
 };
 
 export const SHARING_BY_TYPE: Record<PropertyType, SharingOption[]> = {
   pg: ["1_sharing", "2_sharing", "3_sharing", "4_sharing", "5_sharing", "6_sharing"],
   room: ["single_room", "1rk"],
   flat: ["1bhk", "2bhk", "3bhk", "4bhk"],
+  hotel: ["single_room", "1rk"],
 };
 
 export const SHARING_FIELD_LABEL: Record<PropertyType, string> = {
   pg: "Sharing type",
   room: "Room type",
   flat: "Flat size (BHK)",
+  hotel: "Room type",
 };
 
 export const SHARING_LABEL: Record<SharingOption, string> = {
@@ -123,3 +127,18 @@ export const RATING_RELATION_LABEL: Record<RatingRelation, string> = {
 };
 
 // Cities, localities, home content, greetings and pages live in the database (see ./content.ts).
+
+/* ------------------------------------------------------------- visits */
+
+/** Visit slots offered to seekers: start hour (IST, 24 h) and label. */
+export const VISIT_SLOTS = [
+  { hour: 9, label: "9 – 10 AM" },
+  { hour: 10, label: "10 – 11 AM" },
+  { hour: 11, label: "11 AM – 12 PM" },
+  { hour: 12, label: "12 – 1 PM" },
+  { hour: 14, label: "2 – 3 PM" },
+  { hour: 15, label: "3 – 4 PM" },
+  { hour: 16, label: "4 – 5 PM" },
+  { hour: 17, label: "5 – 6 PM" },
+  { hour: 18, label: "6 – 7 PM" },
+] as const;

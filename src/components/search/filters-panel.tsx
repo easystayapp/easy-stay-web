@@ -66,6 +66,16 @@ function groupsFor(f: SearchFilters, set: (patch: Partial<SearchFilters>) => voi
     },
     {
       kind: "multi",
+      label: "Safety",
+      options: [],
+      value: [],
+      set: () => {},
+      flags: [
+        { key: "wf", label: "Women-First verified", on: f.womenFirst, toggle: () => set({ womenFirst: !f.womenFirst }) },
+      ],
+    },
+    {
+      kind: "multi",
       label: "Gender preference",
       options: GENDERS.map((g) => ({ value: g, label: GENDER_LABEL[g] })),
       value: f.genders,
@@ -329,9 +339,10 @@ export function activeChips(f: SearchFilters, onChange: (f: SearchFilters) => vo
   if (f.minRating) chips.push({ key: "rating", label: `${f.minRating}★ & above`, remove: () => onChange({ ...base, minRating: null }) });
   if (f.ownerRated4) chips.push({ key: "o4", label: "Owner 4★+", remove: () => onChange({ ...base, ownerRated4: false }) });
   if (f.areaRated4) chips.push({ key: "a4", label: "Area 4★+", remove: () => onChange({ ...base, areaRated4: false }) });
+  if (f.womenFirst) chips.push({ key: "wf", label: "Women-First", remove: () => onChange({ ...base, womenFirst: false }) });
   return chips;
 }
 
 export function resetFilters(f: SearchFilters): SearchFilters {
-  return { ...emptyFilters(f.city), q: f.q, sort: f.sort };
+  return { ...emptyFilters(f.city), q: f.q, sort: f.sort, userLat: f.userLat, userLng: f.userLng };
 }

@@ -5,11 +5,43 @@ import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { H1, Note, Panel, Pill, field, useAction, useAdminGet } from "@/components/admin/ui";
 import { adminFetch } from "@/lib/client/admin-api";
-import type { PropertySafety } from "@/lib/domain/ops";
+import { WOMEN_FIRST_CHECKS, WOMEN_FIRST_LABEL, WOMEN_FIRST_VALID_DAYS, womenFirstUntil, type PropertySafety, type WomenFirstChecks } from "@/lib/domain/ops";
 
 interface Listing {
   id: string; title: string; type: string; status: string; rent: number; city: string; locality: string;
   ownerId: string; ownerName: string | null; ownerEmail: string | null; photo: string | null; safety: PropertySafety;
+}
+
+const isPast = (ms: number, now = Date.now()) => now > ms;
+
+function WomenFirstPanel({ l, reload }: { l: Listing; reload: () => void }) {
+  const [checks, setChecks] = useState<WomenFirstChecks>(l.safety.womenFirst);
+  const [note, setNote] = useState("");
+  const act = useAction();
+  const until = womenFirstUntil(l.safety.womenFirst);
+  const live = until !== null && !isPast(until);
+  return (
+    <Panel
+      title="Women-First"
+      right={live ? <Pill tone="green">badge live until {new Date(until).toLocaleDateString("en-IN")}</Pill> : <Pill>{until ? "lapsed — re-verify" : "not verified"}</Pill>}
+    >
+      <p className="mb-2 text-xs text-muted-foreground">
+        Tick only what you confirmed on a site visit. All three = Women-First badge for {WOMEN_FIRST_VALID_DAYS} days. Saving restarts the clock.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {WOMEN_FIRST_CHECKS.map((k) => (
+          <label key={k} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={checks[k]} onChange={(e) => setChecks({ ...checks, [k]: e.target.checked })} /> {WOMEN_FIRST_LABEL[k]}
+          </label>
+        ))}
+      </div>
+      <input className={`${field} mt-2`} placeholder="Visit notes (kept in the audit log)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Button className="mt-2" size="sm" disabled={act.busy} onClick={() => act.run(async () => { await adminFetch(`/properties/${l.id}/women-first`, { method: "PUT", body: { ...checks, note } }); reload(); }, "Saved.")}>
+        Save checks
+      </Button>
+      <Note error={act.error} done={act.done} />
+    </Panel>
+  );
 }
 
 function Detail({ l, reload }: { l: Listing; reload: () => void }) {
@@ -43,6 +75,7 @@ function Detail({ l, reload }: { l: Listing; reload: () => void }) {
         <Button className="mt-2" size="sm" disabled={health.busy || score === ""} onClick={() => health.run(async () => { await adminFetch(`/properties/${l.id}/health`, { method: "PUT", body: { score: Number(score), publish, note } }); reload(); }, "Saved.")}>Save score</Button>
         <Note error={health.error} done={health.done} />
       </Panel>
+      <WomenFirstPanel l={l} reload={reload} />
       <Panel title={l.safety.hidden ? "Restore listing" : "Hide listing"}>
         {!l.safety.hidden && <input className={field} placeholder="Reason (shown to the owner)" value={reason} onChange={(e) => setReason(e.target.value)} />}
         {l.safety.hidden && <p className="text-sm text-muted-foreground">Hidden: {l.safety.hiddenReason}</p>}

@@ -1,5 +1,6 @@
 /** Domain entity → API DTO mapping. The only place DTOs are built. */
 import type {
+  CardSafety,
   EditableProperty,
   Me,
   OwnerListing,
@@ -9,7 +10,8 @@ import type {
   RatingItem,
 } from "@/types/api";
 import { firstName } from "@/lib/domain/format";
-import { daysLeft, effectiveStatus } from "@/lib/domain/listing";
+import { daysLeft, effectiveStatus, freshAt } from "@/lib/domain/listing";
+import type { SafetyBadge } from "@/lib/domain/ops";
 import { factorAverage } from "@/lib/domain/rating";
 import { dayKey } from "@/lib/domain/time";
 import {
@@ -30,7 +32,12 @@ export function factorAverages(p: Property): Record<RatingFactor, number | null>
   return out;
 }
 
-export function toCard(p: Property): PropertyCard {
+export function toCardSafety(s: SafetyBadge | null | undefined): CardSafety | null {
+  if (!s) return null;
+  return { healthScore: s.healthScore, womenFirst: s.womenFirst.verified, ownerVerified: s.ownerKycVerified };
+}
+
+export function toCard(p: Property, safety?: SafetyBadge | null): PropertyCard {
   return {
     id: p.id,
     title: p.title,
@@ -47,7 +54,9 @@ export function toCard(p: Property): PropertyCard {
     photos: p.photos.map((x) => x.url),
     availableFrom: iso(p.availableFrom),
     publishedAt: iso(p.publishedAt),
+    freshAt: iso(freshAt(p)),
     rating: { average: p.ratingSummary.average, count: p.ratingSummary.count },
+    safety: toCardSafety(safety),
   };
 }
 
@@ -56,9 +65,17 @@ export function contactChannelsFor(owner: User | null): ContactChannel[] {
   return m === "both" ? ["whatsapp", "call"] : [m];
 }
 
-export function toDetail(p: Property, owner: User | null, viewerId: string | null, ownerStats: Pick<OwnerProfile, "ownerRating" | "ratingCount" | "listings">, now = new Date()): PropertyDetail {
+export function toDetail(
+  p: Property,
+  owner: User | null,
+  viewerId: string | null,
+  ownerStats: Pick<OwnerProfile, "ownerRating" | "ratingCount" | "listings">,
+  safety: SafetyBadge | null,
+  now = new Date(),
+): PropertyDetail {
   return {
-    ...toCard(p),
+    ...toCard(p, safety),
+    safetyDetail: safety,
     status: effectiveStatus(p, now),
     deposit: p.deposit,
     address: p.location.address,

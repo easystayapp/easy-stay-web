@@ -11,7 +11,7 @@ import type {
 } from "@/types/api";
 import { DomainError } from "@/lib/domain/errors";
 import { assertActive, requireVerifiedEmail } from "./ops/guard";
-import { assertNotHidden } from "./ops/verification";
+import { assertNotHidden, cardsWithSafety, getSafety, womenFirstIds } from "./ops/verification";
 import { normalizeIndianMobile } from "@/lib/domain/format";
 import {
   applyListingAction,
@@ -32,6 +32,7 @@ import {
   PAGE_SIZE,
   pickFeatured,
   sortProperties,
+  TYPE_PLURAL,
   type SearchFilters,
 } from "@/lib/domain/search";
 import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
@@ -40,10 +41,11 @@ import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/t
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
 import { assertPropertyInput, type PropertyInput } from "@/lib/domain/validation";
 import type { AuthUser } from "../auth";
-import type { Repositories } from "../repositories";
+import { PATHS, type Repositories } from "../repositories";
+import type { PropertySafety } from "@/lib/domain/ops";
 import { deleteMedia, verifyPhotos } from "./media";
 import { popularIn } from "./content";
-import { factorAverages, toCard, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
+import { factorAverages, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
 import { requireOwner } from "./users";
 
 const CANDIDATE_LIMIT = 500;
@@ -52,15 +54,20 @@ const CANDIDATE_LIMIT = 500;
 
 export async function searchProperties(repos: Repositories, filters: SearchFilters): Promise<SearchResponse> {
   const now = new Date();
-  const candidates = await repos.properties.findCandidates(filters, CANDIDATE_LIMIT);
+  const [candidates, womenFirst] = await Promise.all([
+    repos.properties.findCandidates(filters, CANDIDATE_LIMIT),
+    filters.womenFirst ? womenFirstIds(repos) : null,
+  ]);
+  const from = filters.userLat != null && filters.userLng != null ? { lat: filters.userLat, lng: filters.userLng } : null;
   const matched = sortProperties(
-    candidates.filter((p) => matchesFilters(p, filters, now)),
+    candidates.filter((p) => matchesFilters(p, filters, now) && (!womenFirst || womenFirst.has(p.id))),
     filters.sort,
+    from,
   );
   const pageCount = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
   const page = Math.min(filters.page, pageCount);
   return {
-    items: matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(toCard),
+    items: await cardsWithSafety(repos, matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)),
     total: matched.length,
     page,
     pageCount,
@@ -71,7 +78,7 @@ export async function searchProperties(repos: Repositories, filters: SearchFilte
 export async function featuredProperties(repos: Repositories, city: string, n = 5): Promise<FeaturedStay[]> {
   const now = new Date();
   const visible = (await repos.properties.findCandidates(emptyFilters(city), CANDIDATE_LIMIT)).filter((p) => isPubliclyVisible(p, now));
-  return pickFeatured(visible, n).map(toCard);
+  return cardsWithSafety(repos, pickFeatured(visible, n));
 }
 
 export async function searchSuggestions(repos: Repositories, q: string, city: string): Promise<Suggestion[]> {
@@ -114,7 +121,7 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
   if (top) {
     const types = counts.get(top)!;
     for (const t of (types.size ? [...types] : (["pg", "flat"] as PropertyType[])).slice(0, 3)) {
-      const noun = t === "pg" ? "PGs" : t === "room" ? "Rooms" : "Flats";
+      const noun = TYPE_PLURAL[t];
       out.push({ kind: "type", label: `${noun} in ${top}`, sub: `Property type · ${PROPERTY_TYPE_LABEL[t]}`, query: { q: top, type: t } });
     }
   }
@@ -134,10 +141,18 @@ export async function getPropertyDetail(
 ): Promise<PropertyDetail> {
   const p = await loadProperty(repos, id);
   const isOwner = auth?.uid === p.ownerId;
-  if (!isOwner && !isPubliclyVisible(p)) {
+  // Rented listings stay viewable (shown as "Sold out") so saved and shared links still explain themselves.
+  if (!isOwner && !isPubliclyVisible(p) && p.status !== "rented") {
     throw new DomainError("not_found", "This property is no longer available. It may have been rented or expired.");
   }
-  const [owner, theirs] = await Promise.all([repos.users.get(p.ownerId), repos.properties.listByOwner(p.ownerId)]);
+  const [owner, theirs, safety] = await Promise.all([
+    repos.users.get(p.ownerId),
+    repos.properties.listByOwner(p.ownerId),
+    getSafety(repos, p.id),
+  ]);
+  if (!isOwner && p.status === "rented" && (await repos.docs<PropertySafety>(PATHS.safety).get(p.id))?.hidden) {
+    throw new DomainError("not_found", "This property is no longer available.");
+  }
   const now = new Date();
   const live = theirs.filter((x) => isPubliclyVisible(x, now));
   const { sum, count } = ownerScore(live.length ? live : [p]);
@@ -145,7 +160,7 @@ export async function getPropertyDetail(
     ownerRating: count ? Math.round((sum / count) * 10) / 10 : null,
     ratingCount: count,
     listings: live.length,
-  });
+  }, safety);
 }
 
 /** One view per person (or device) per day; owners viewing their own listing don't count. */

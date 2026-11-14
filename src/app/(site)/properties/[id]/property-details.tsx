@@ -1,10 +1,14 @@
 "use client";
 
-import { Bath, Building2, CalendarClock, Car, ChevronLeft, Info, MapPin, MessageCircle, Phone, Snowflake, Sofa, User, Users, Utensils, Wifi, Zap, type LucideIcon } from "lucide-react";
+import { Bath, Building2, CalendarClock, CalendarPlus, Car, ChevronLeft, Flag, Info, MapPin, MessageCircle, Phone, Snowflake, Sofa, User, Users, Utensils, Wifi, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContactSheet } from "@/components/property/contact-sheet";
+import { EnquiryDialog } from "@/components/enquiry/enquiry-dialog";
+import { ReportDialog } from "@/components/property/report-dialog";
+import { FreshnessLabel, HealthPill, SafetySection, WomenFirstPill } from "@/components/property/safety-badges";
+import { SosButton } from "@/components/safety/sos-button";
 import { Gallery } from "@/components/property/gallery";
 import { OwnerCard } from "@/components/property/owner-card";
 import { LocationMap } from "@/components/property/location-map";
@@ -49,6 +53,8 @@ export function PropertyDetails() {
   const [error, setError] = useState<string | null>(null);
   const [contact, setContact] = useState<ContactInfo | null>(null);
   const [busy, setBusy] = useState<ContactChannel | null>(null);
+  const [enquiry, setEnquiry] = useState<"visit" | "message" | null>(null);
+  const [reporting, setReporting] = useState(false);
   const viewed = useRef(false);
 
   useEffect(() => {
@@ -84,6 +90,16 @@ export function PropertyDetails() {
     [id, requireLogin, toast],
   );
 
+  const openEnquiry = async (mode: "visit" | "message") => {
+    if (!(await requireLogin({ title: "Log in to book a visit", subtitle: "Chat with the owner and pick a time. Your number stays private until they accept." }))) return;
+    setEnquiry(mode);
+  };
+
+  const report = async () => {
+    if (!(await requireLogin({ title: "Log in to report this listing", subtitle: "Reports are reviewed by EasyStay within 24 hours." }))) return;
+    setReporting(true);
+  };
+
   const rate = async () => {
     if (!(await requireLogin({ title: "Log in to rate this property", subtitle: "Ratings come only from people who contacted the owner." }))) return;
     router.push(`/properties/${id}/rate`);
@@ -104,6 +120,8 @@ export function PropertyDetails() {
   if (!p || !ratings) return <PageSpinner label="Loading property" />;
 
   const avail = availabilityLabel(p.availableFrom ? new Date(p.availableFrom) : null);
+  const live = p.status === "active";
+  const soldOut = p.status === "rented";
   const canCall = p.contactChannels.includes("call");
   const canWa = p.contactChannels.includes("whatsapp");
   const facts: [LucideIcon, string, string][] = [
@@ -130,22 +148,54 @@ export function PropertyDetails() {
     </div>
   );
 
-  const contactButtons = (layout: "stack" | "row") => (
-    <>
-      {canWa && (
-        <Button variant="whatsapp" size="lg" block={layout === "stack"} className={layout === "row" ? "flex-1" : ""} loading={busy === "whatsapp"} onClick={() => connect("whatsapp")}>
-          {busy !== "whatsapp" && <MessageCircle aria-hidden className="size-5" />}
-          {layout === "stack" ? "WhatsApp owner" : "WhatsApp"}
+  const contactButtons = (layout: "stack" | "row") =>
+    !live ? (
+      <div className="flex flex-1 flex-col gap-2 rounded-2xl bg-surface p-4">
+        <span className="text-sm font-extrabold">{soldOut ? "Sold out — this place has been rented" : "Not taking enquiries right now"}</span>
+        <ButtonLink href={`/properties?city=${encodeURIComponent(p.city)}&q=${encodeURIComponent(p.locality)}&type=${p.type}`} size="sm" variant="outline">
+          See similar places nearby
+        </ButtonLink>
+      </div>
+    ) : layout === "stack" ? (
+      <>
+        <Button size="lg" block onClick={() => openEnquiry("visit")}>
+          <CalendarPlus aria-hidden className="size-5" />
+          Book a visit
         </Button>
-      )}
-      {canCall && (
-        <Button variant="outline" size="lg" block={layout === "stack"} className={layout === "row" ? "flex-1" : ""} loading={busy === "call"} onClick={() => connect("call")}>
-          {busy !== "call" && <Phone aria-hidden className="size-5" />}
-          {layout === "stack" ? "Call owner" : "Call Owner"}
+        {canWa && (
+          <Button variant="whatsapp" size="lg" block loading={busy === "whatsapp"} onClick={() => connect("whatsapp")}>
+            {busy !== "whatsapp" && <MessageCircle aria-hidden className="size-5" />}
+            WhatsApp owner
+          </Button>
+        )}
+        {canCall && (
+          <Button variant="outline" size="lg" block loading={busy === "call"} onClick={() => connect("call")}>
+            {busy !== "call" && <Phone aria-hidden className="size-5" />}
+            Call owner
+          </Button>
+        )}
+        <button type="button" onClick={() => openEnquiry("message")} className="text-center text-sm font-bold text-brand hover:text-brand-dark">
+          Chat with owner instead
+        </button>
+      </>
+    ) : (
+      <>
+        <Button size="lg" className="flex-1" onClick={() => openEnquiry("visit")}>
+          <CalendarPlus aria-hidden className="size-5" />
+          Book a visit
         </Button>
-      )}
-    </>
-  );
+        {canWa && (
+          <Button variant="whatsapp" size="icon-lg" aria-label="WhatsApp owner" className="size-[54px]" loading={busy === "whatsapp"} onClick={() => connect("whatsapp")}>
+            {busy !== "whatsapp" && <MessageCircle aria-hidden className="size-5" />}
+          </Button>
+        )}
+        {canCall && (
+          <Button variant="outline" size="icon-lg" aria-label="Call owner" className="size-[54px]" loading={busy === "call"} onClick={() => connect("call")}>
+            {busy !== "call" && <Phone aria-hidden className="size-5" />}
+          </Button>
+        )}
+      </>
+    );
 
   return (
     <div className="container-page pb-32 md:py-6 md:pb-16">
@@ -177,14 +227,20 @@ export function PropertyDetails() {
         <div className="flex min-w-0 flex-col gap-8">
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
-              {p.status === "active" ? (
-                <span className="rounded-lg bg-ok-bg px-2.5 py-1 text-[11px] font-extrabold tracking-[0.06em] text-ok">AVAILABLE</span>
+              {live ? (
+                <span className="rounded-lg bg-ok-bg px-2.5 py-1 text-[11px] font-extrabold tracking-[0.06em] text-ok">
+                  {avail === "Available now" ? "AVAILABLE NOW" : avail.toUpperCase()}
+                </span>
+              ) : soldOut ? (
+                <span className="rounded-lg bg-blush px-2.5 py-1 text-[11px] font-extrabold tracking-[0.06em] text-brand-dark">SOLD OUT</span>
               ) : (
                 <StatusBadge status={p.status} />
               )}
               <Tag>
                 {PROPERTY_TYPE_SHORT[p.type]} · {GENDER_LABEL[p.availableFor]}
               </Tag>
+              {p.safety?.healthScore != null && <HealthPill score={p.safety.healthScore} className="py-1" />}
+              {p.safety?.womenFirst && <WomenFirstPill className="py-1" />}
             </div>
             <h1 className="text-[26px] leading-tight font-extrabold tracking-tight md:text-[34px]">{p.title}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
@@ -208,6 +264,7 @@ export function PropertyDetails() {
               </span>
             </div>
             {p.address && <p className="text-sm text-muted-2">{p.address}</p>}
+            <FreshnessLabel at={p.freshAt} />
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:hidden">
@@ -265,11 +322,26 @@ export function PropertyDetails() {
             </section>
           )}
 
+          <SafetySection safety={p.safetyDetail} />
+
           <OwnerCard owner={p.owner} />
 
           <LocationMap title={p.title} address={p.address} locality={p.locality} city={p.city} geo={p.geo} />
 
           <RatingsSection ratings={ratings} foodServed={p.food} onRate={rate} />
+
+          {!p.viewerIsOwner && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+              <span className="flex items-center gap-3">
+                <SosButton place={`${p.title}, ${p.locality}, ${p.city}`} compact />
+                <span className="text-[13px] text-muted-2">Visiting now and feel unsafe?</span>
+              </span>
+              <button type="button" onClick={report} className="flex items-center gap-1.5 text-[13px] font-bold text-muted-2 hover:text-brand-dark">
+                <Flag aria-hidden className="size-4" />
+                Report this listing
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 rounded-[20px] bg-surface p-4 lg:hidden">
             <Avatar name={p.owner.name} />
@@ -292,7 +364,7 @@ export function PropertyDetails() {
               <span className="font-bold">{p.deposit != null ? formatRupees(p.deposit) : "Ask owner"}</span>
             </div>
             {ownerControls || contactButtons("stack")}
-            {!p.viewerIsOwner && (
+            {!p.viewerIsOwner && live && (
               <Button variant="neutral" block onClick={() => toggle(p.id)}>
                 {isSaved(p.id) ? "♥ Saved" : "♡ Save property"}
               </Button>
@@ -318,6 +390,9 @@ export function PropertyDetails() {
       <div className="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-line bg-white px-5 pt-3.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:hidden">
         {ownerControls ? <div className="flex-1">{ownerControls}</div> : contactButtons("row")}
       </div>
+
+      {enquiry && <EnquiryDialog propertyId={p.id} propertyTitle={p.title} initialMode={enquiry} onClose={() => setEnquiry(null)} />}
+      {reporting && <ReportDialog propertyId={p.id} onClose={() => setReporting(false)} />}
 
       {contact && (
         <ContactSheet

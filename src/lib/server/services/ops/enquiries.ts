@@ -8,6 +8,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { DomainError } from "@/lib/domain/errors";
+import { formatVisit } from "@/lib/domain/format";
 import { effectiveStatus } from "@/lib/domain/listing";
 import {
   MAX_MESSAGE_LENGTH,
@@ -258,7 +259,7 @@ export async function act(repos: Repositories, auth: AuthUser, id: string, body:
       if ((action === "reschedule") !== (side === "owner")) throw new DomainError("forbidden", "That action isn't available to you.");
       const at = checkVisitTime(body.visitAt, now);
       next.visit = { at, status: side === "owner" ? "rescheduled" : "requested", by: side, note, updatedAt: now };
-      system = `${side === "owner" ? "Owner suggested" : "Visit requested for"} ${new Date(at).toISOString()}.`;
+      system = `${side === "owner" ? "Owner suggested a visit on" : "Visit requested for"} ${formatVisit(at)}.`;
     } else if (side === "seeker" && cur.visit?.status === "rescheduled" && (action === "accept" || action === "decline")) {
       next.visit = { ...cur.visit, status: action === "accept" ? "confirmed" : "cancelled", by: "seeker", updatedAt: now };
       if (action === "accept") {

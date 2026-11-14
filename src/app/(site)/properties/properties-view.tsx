@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, SearchX, SlidersHorizontal, X } from "lucide-react";
+import { ChevronLeft, SearchX, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
 import { PageSpinner } from "@/components/ui/page-spinner";
 import { api, errorMessage } from "@/lib/client/api";
+import { useToast } from "@/hooks/use-toast";
 import { cx } from "@/lib/client/cx";
 import type { SearchResponse } from "@/types/api";
 import {
@@ -64,7 +65,27 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
     };
   }, [key, city, result?.key]);
 
+  const toast = useToast();
+  const [locating, setLocating] = useState(false);
   const apply = (f: SearchFilters) => router.replace(`/properties?${serializeFilters(f)}`, { scroll: false });
+
+  /** "Nearest first" needs the seeker's position; ask once, then sort on the server. */
+  const sortBy = (sort: SearchSort) => {
+    if (sort !== "distance") return apply({ ...filters, sort, page: 1 });
+    if (!navigator.geolocation) return toast("Location isn't available on this device.", "error");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        apply({ ...filters, sort, userLat: coords.latitude, userLng: coords.longitude, page: 1 });
+      },
+      () => {
+        setLocating(false);
+        toast("Allow location access to sort by distance.", "error");
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  };
   const chips = activeChips(filters, apply);
   const count = activeFilterCount(filters);
 
@@ -114,6 +135,16 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
             <SlidersHorizontal aria-hidden className="size-4" />
             Filters{count ? ` · ${count}` : ""}
           </button>
+          {!filters.womenFirst && (
+            <button
+              type="button"
+              onClick={() => apply({ ...filters, womenFirst: true, page: 1 })}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-tag-line bg-white px-3.5 text-[13px] font-bold text-tag-dark hover:bg-tag-bg"
+            >
+              <Sparkles aria-hidden className="size-4" />
+              Women-First
+            </button>
+          )}
           {chips.map((c) => (
             <button
               key={c.key}
@@ -141,8 +172,8 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
           </h1>
           <div className="flex items-center gap-2">
             <Label htmlFor="sort" className="text-muted-foreground">Sort</Label>
-            <Select value={filters.sort} onValueChange={(v) => apply({ ...filters, sort: v as SearchSort, page: 1 })}>
-              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]">
+            <Select value={filters.sort} onValueChange={(v) => sortBy(v as SearchSort)} disabled={locating}>
+              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]" aria-busy={locating}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="end">

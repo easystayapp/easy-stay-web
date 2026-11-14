@@ -162,10 +162,42 @@ export interface PropertySafety {
   noc: { fire: Ms | null; structural: Ms | null; electrical: Ms | null };
   photosVerified: boolean;
   ownerKycVerified: boolean;
+  /** Women-First checks, each confirmed by an admin on a site visit. */
+  womenFirst: WomenFirstChecks;
+  /**
+   * Denormalised for search: verifiedAt + validity when all three checks pass,
+   * else null. One range query (`> now`) finds every qualifying listing.
+   */
+  womenFirstUntil: Ms | null;
   /** Admin hid the listing; owners cannot resume it. */
   hidden: boolean;
   hiddenReason: string | null;
   updatedAt: Ms;
+}
+
+export interface WomenFirstChecks {
+  femaleCaretaker: boolean;
+  guard24x7: boolean;
+  wellLitAccess: boolean;
+  /** Last admin verification. */
+  verifiedAt: Ms | null;
+}
+
+export const WOMEN_FIRST_CHECKS = ["femaleCaretaker", "guard24x7", "wellLitAccess"] as const;
+export const WOMEN_FIRST_LABEL: Record<(typeof WOMEN_FIRST_CHECKS)[number], string> = {
+  femaleCaretaker: "Female caretaker on site",
+  guard24x7: "24×7 security guard",
+  wellLitAccess: "Well-lit access road",
+};
+/** Women-First must be re-verified this often or the badge lapses. */
+export const WOMEN_FIRST_VALID_DAYS = 180;
+
+export const emptyWomenFirst = (): WomenFirstChecks => ({ femaleCaretaker: false, guard24x7: false, wellLitAccess: false, verifiedAt: null });
+
+/** When the Women-First badge lapses, or null if the listing doesn't qualify. */
+export function womenFirstUntil(w: WomenFirstChecks): Ms | null {
+  if (!w.verifiedAt || !WOMEN_FIRST_CHECKS.every((k) => w[k])) return null;
+  return w.verifiedAt + WOMEN_FIRST_VALID_DAYS * 86_400_000;
 }
 
 export const emptySafety = (propertyId: string, now: Ms): PropertySafety => ({
@@ -175,6 +207,8 @@ export const emptySafety = (propertyId: string, now: Ms): PropertySafety => ({
   noc: { fire: null, structural: null, electrical: null },
   photosVerified: false,
   ownerKycVerified: false,
+  womenFirst: emptyWomenFirst(),
+  womenFirstUntil: null,
   hidden: false,
   hiddenReason: null,
   updatedAt: now,
@@ -194,10 +228,18 @@ export function safetyBadge(raw: PropertySafety | null, now: Ms) {
   if (!raw) return null;
   // Docs are written with partial merges, so fill any missing fields.
   const d = emptySafety(raw.id, 0);
-  const s: PropertySafety = { ...d, ...raw, noc: { ...d.noc, ...raw.noc } };
+  const s: PropertySafety = { ...d, ...raw, noc: { ...d.noc, ...raw.noc }, womenFirst: { ...d.womenFirst, ...raw.womenFirst } };
   if (s.hidden) return null;
+  const wfUntil = womenFirstUntil(s.womenFirst);
   return {
     healthScore: s.healthPublished ? s.healthScore : null,
+    womenFirst: {
+      verified: wfUntil !== null && wfUntil > now,
+      femaleCaretaker: s.womenFirst.femaleCaretaker,
+      guard24x7: s.womenFirst.guard24x7,
+      wellLitAccess: s.womenFirst.wellLitAccess,
+      verifiedAt: s.womenFirst.verifiedAt,
+    },
     noc: {
       fire: { expiresAt: s.noc.fire, state: nocState(s.noc.fire, now) },
       structural: { expiresAt: s.noc.structural, state: nocState(s.noc.structural, now) },
@@ -207,6 +249,22 @@ export function safetyBadge(raw: PropertySafety | null, now: Ms) {
     ownerKycVerified: s.ownerKycVerified,
   };
 }
+
+export type SafetyBadge = NonNullable<ReturnType<typeof safetyBadge>>;
+
+export type HealthTier = "excellent" | "good" | "fair" | "poor";
+export function healthTier(score: number): HealthTier {
+  if (score >= 80) return "excellent";
+  if (score >= 60) return "good";
+  if (score >= 40) return "fair";
+  return "poor";
+}
+export const HEALTH_TIER_LABEL: Record<HealthTier, string> = {
+  excellent: "Excellent",
+  good: "Good",
+  fair: "Fair",
+  poor: "Needs work",
+};
 
 /* ------------------------------------------------------- cases (moderation) */
 
@@ -218,6 +276,25 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
 
 export const CASE_STATUSES = ["open", "acknowledged", "resolved", "rejected"] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
+
+export type CaseTarget = "property" | "user" | "message" | "platform";
+
+export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
+  fake: "Fake or duplicate listing",
+  wrong_info: "Wrong price, photos or details",
+  unavailable: "Already rented / not available",
+  unsafe: "Unsafe place or person",
+  scam: "Asked for money upfront / scam",
+  abusive: "Abusive or harassing behaviour",
+  other: "Something else",
+};
+
+export const CASE_STATUS_LABEL: Record<CaseStatus, string> = {
+  open: "Received",
+  acknowledged: "Being looked into",
+  resolved: "Resolved",
+  rejected: "Closed — no action",
+};
 
 export const SLA = {
   acknowledgeMs: 24 * 3_600_000,
@@ -233,7 +310,7 @@ export interface Case {
   id: string;
   kind: CaseKind;
   status: CaseStatus;
-  targetType: "property" | "user" | "message";
+  targetType: CaseTarget;
   targetId: string;
   reporterId: string;
   reason: ReportReason;

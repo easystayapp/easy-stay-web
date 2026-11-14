@@ -18,7 +18,8 @@ import type {
   User,
 } from "@/lib/domain/types";
 import { emptySummary } from "@/lib/domain/rating";
-import type { Repositories } from "../repositories/types";
+import { womenFirstUntil, type PropertySafety } from "@/lib/domain/ops";
+import { PATHS, type Repositories } from "../repositories/types";
 
 const OWNER_ID = "demo-owner-rahul";
 
@@ -84,6 +85,21 @@ const SEEDS: Seed[] = [
   { title: "3 BHK Family Flat", type: "flat", sharing: "3bhk", rent: 32000, deposit: 100000, locality: "Madhapur", gender: "anyone", furnishing: "furnished", food: false, amenities: ["ac", "parking", "attached_bath"], availableInDays: 10, publishedDaysAgo: 7, ratings: [[5, 5, 5, 4, null], [4, 5, 5, 4, null], [5, 4, 4, 4, null]], description: "Gated community with pool and clubhouse. Fully furnished with appliances." },
 ];
 
+/** Approximate locality centres, for map pins and "Nearest first". */
+const LOCALITY_GEO: Record<string, { lat: number; lng: number }> = {
+  Madhapur: { lat: 17.4483, lng: 78.3915 },
+  Kondapur: { lat: 17.4615, lng: 78.3647 },
+  Gachibowli: { lat: 17.4401, lng: 78.3489 },
+  Kukatpally: { lat: 17.4948, lng: 78.3996 },
+  "Hitech City": { lat: 17.4435, lng: 78.3772 },
+};
+
+/** Spreads listings in the same locality a few hundred metres apart. */
+function demoGeo(locality: string, i: number) {
+  const c = LOCALITY_GEO[locality];
+  return c ? { lat: c.lat + ((i % 3) - 1) * 0.003, lng: c.lng + ((i % 2) * 2 - 1) * 0.003 } : null;
+}
+
 const RELATIONS: RatingRelation[] = ["stayed", "visited", "living", "visited"];
 const REVIEWERS = ["Arjun", "Priya", "Sneha", "Vikram"];
 const REVIEWS = [
@@ -116,7 +132,7 @@ export async function seedDemoData(repos: Repositories, now = new Date()): Promi
   await repos.users.createIfMissing(owner);
 
   const created: Property[] = [];
-  for (const s of SEEDS) {
+  for (const [i, s] of SEEDS.entries()) {
     const publishedAt = addDays(now, -s.publishedDaysAgo);
     const property = await repos.properties.create({
       ownerId: OWNER_ID,
@@ -125,7 +141,7 @@ export async function seedDemoData(repos: Repositories, now = new Date()): Promi
       title: s.title,
       rent: s.rent,
       deposit: s.deposit,
-      location: { city: "Hyderabad", locality: s.locality, address: "", geo: null },
+      location: { city: "Hyderabad", locality: s.locality, address: "", geo: demoGeo(s.locality, i) },
       photos: demoPhotos(s.title),
       availableFor: s.gender,
       contact: { phone: owner.phone!, whatsapp: null },
@@ -146,20 +162,20 @@ export async function seedDemoData(repos: Repositories, now = new Date()): Promi
     });
 
     const ratings: Rating[] = [];
-    for (const [i, [property_, owner_, environment, value, food]] of s.ratings.entries()) {
-      const userId = `demo-reviewer-${i}`;
+    for (const [r, [property_, owner_, environment, value, food]] of s.ratings.entries()) {
+      const userId = `demo-reviewer-${r}`;
       const scores = { property: property_, owner: owner_, environment, value, food: s.food ? food : null };
-      const at = addDays(now, -i - 1);
+      const at = addDays(now, -r - 1);
       await repos.contacts.record({ propertyId: property.id, ownerId: OWNER_ID, userId, channel: "whatsapp", at });
       ratings.push(
         await repos.ratings.upsert({
           propertyId: property.id,
           userId,
-          authorName: REVIEWERS[i % REVIEWERS.length],
-          relation: RELATIONS[i % RELATIONS.length],
+          authorName: REVIEWERS[r % REVIEWERS.length],
+          relation: RELATIONS[r % RELATIONS.length],
           scores,
           combined: combinedScore(scores),
-          review: REVIEWS[i % REVIEWS.length],
+          review: REVIEWS[r % REVIEWS.length],
           createdAt: at,
           updatedAt: at,
         }),
@@ -169,4 +185,36 @@ export async function seedDemoData(repos: Repositories, now = new Date()): Promi
     created.push(property);
   }
   return created;
+}
+
+/**
+ * Sample safety badges for the in-memory demo only. Never written to a real
+ * database: verified badges there must come from an admin review.
+ */
+export async function seedDemoSafety(repos: Repositories, listings: Property[], now = Date.now()) {
+  const day = 86_400_000;
+  const byTitle = new Map(listings.map((p) => [p.title, p.id]));
+  const rows: { title: string; score: number; noc: [number | null, number | null, number | null]; womenFirst?: boolean }[] = [
+    { title: "Girls Hostel, 3 Sharing", score: 88, noc: [now + 300 * day, now + 500 * day, now + 200 * day], womenFirst: true },
+    { title: "Single Sharing PG", score: 82, noc: [now + 400 * day, now + 600 * day, now + 20 * day] },
+    { title: "Single PG with AC", score: 64, noc: [now + 90 * day, null, now - 5 * day] },
+    { title: "3 BHK Family Flat", score: 91, noc: [now + 700 * day, now + 700 * day, now + 700 * day] },
+  ];
+  for (const r of rows) {
+    const id = byTitle.get(r.title);
+    if (!id) continue;
+    const womenFirst = { femaleCaretaker: !!r.womenFirst, guard24x7: !!r.womenFirst, wellLitAccess: !!r.womenFirst, verifiedAt: r.womenFirst ? now - 10 * day : null };
+    await repos.docs<PropertySafety>(PATHS.safety).set(id, {
+      healthScore: r.score,
+      healthPublished: true,
+      noc: { fire: r.noc[0], structural: r.noc[1], electrical: r.noc[2] },
+      photosVerified: true,
+      ownerKycVerified: true,
+      womenFirst,
+      womenFirstUntil: womenFirstUntil(womenFirst),
+      hidden: false,
+      hiddenReason: null,
+      updatedAt: now,
+    });
+  }
 }

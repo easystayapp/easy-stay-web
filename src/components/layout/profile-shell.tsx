@@ -23,10 +23,13 @@ export function ProfileShell({ me, active, children }: { me: Me; active: Profile
           { tab: "owner-settings" as const, href: tabHref("owner-settings"), label: "Owner settings" },
           { tab: "listings" as const, href: tabHref("listings"), label: "My listings" },
           { tab: "notifications" as const, href: tabHref("notifications"), label: "Notifications" },
+          { tab: null, href: "/owner/verification", label: "Verification & safety" },
         ]
       : [{ tab: null, href: "/owner/setup", label: "Own a property?" }]),
     { tab: "saved", href: tabHref("saved"), label: "Saved properties" },
     { tab: "ratings", href: tabHref("ratings"), label: "My ratings" },
+    { tab: null, href: "/inbox", label: "Messages & visits" },
+    { tab: null, href: "/profile/reports", label: "Reports & grievances" },
   ];
   return (
     <div className="container-page grid gap-8 py-6 md:grid-cols-[260px_1fr] md:py-10">

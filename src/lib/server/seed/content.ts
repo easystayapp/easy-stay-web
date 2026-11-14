@@ -77,6 +77,7 @@ export const SEED_APP_CONFIG: AppConfig = {
     pg: "Hi, I found your property on EasyStay.\nI am interested in this {noun}.\nIs it currently available?",
     room: "Hi, I found your property on EasyStay.\nI am interested in this {noun}.\nIs it currently available?",
     flat: "Hi, I found your property on EasyStay.\nI am interested in this {noun}.\nIs it currently available?",
+    hotel: "Hi, I found your property on EasyStay.\nI am interested in this {noun}.\nIs it currently available?",
   },
 };
 

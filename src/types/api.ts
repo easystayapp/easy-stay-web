@@ -4,6 +4,17 @@
  * contact numbers only appear in `ContactInfo` (after login).
  */
 import type { ListingAction, ReminderKind } from "@/lib/domain/listing";
+import type {
+  CaseKind,
+  CaseStatus,
+  CaseTarget,
+  Enquiry,
+  Message,
+  ReportReason,
+  SafetyBadge,
+  Verification,
+  VerificationKind,
+} from "@/lib/domain/ops";
 import type { PropertyInput } from "@/lib/domain/validation";
 import type {
   Amenity,
@@ -27,6 +38,14 @@ export interface RatingBadge {
   count: number;
 }
 
+/** Safety facts small enough for a result card. */
+export interface CardSafety {
+  /** Published 0–100 health score, or null. */
+  healthScore: number | null;
+  womenFirst: boolean;
+  ownerVerified: boolean;
+}
+
 export interface PropertyCard {
   id: string;
   title: string;
@@ -44,7 +63,10 @@ export interface PropertyCard {
   photos: string[];
   availableFrom: string | null;
   publishedAt: string | null;
+  /** Last time the owner touched the listing (edit, repost or "still available"), for "Updated X ago". */
+  freshAt: string | null;
   rating: RatingBadge;
+  safety: CardSafety | null;
 }
 
 /** A home-carousel stay (the card already carries every photo). */
@@ -86,6 +108,8 @@ export interface PropertyDetail extends PropertyCard {
   owner: OwnerProfile;
   viewerIsOwner: boolean;
   expiresAt: string | null;
+  /** Full safety badge: health score, NOC expiry, KYC, Women-First. */
+  safetyDetail: SafetyBadge | null;
 }
 
 export interface SearchResponse {
@@ -240,6 +264,81 @@ export interface PropertyStats {
   rating: RatingBadge;
   factors: Record<RatingFactor, number | null>;
 }
+
+/* ------------------------------------------------- enquiries & chat */
+
+export type InboxSide = "seeker" | "owner";
+
+export interface InboxItem extends Enquiry {
+  unread: number;
+  counterpart: string;
+}
+
+export interface InboxResponse {
+  items: InboxItem[];
+  next: number | null;
+}
+
+export interface ThreadResponse {
+  enquiry: Enquiry;
+  side: InboxSide;
+  /** Shared only after the owner accepts. */
+  contact: { name: string; phone: string | null; whatsapp: string | null } | null;
+}
+
+export interface MessagesResponse {
+  items: Message[];
+  next: number | null;
+}
+
+export type EnquiryAction = "accept" | "decline" | "close" | "reschedule" | "propose";
+
+/* ------------------------------------------------- reports & grievances */
+
+export interface CaseRequest {
+  kind: "report" | "grievance";
+  targetType: CaseTarget;
+  targetId?: string;
+  reason: ReportReason;
+  details?: string;
+}
+
+export interface MyCase {
+  id: string;
+  kind: CaseKind;
+  status: CaseStatus;
+  reason: ReportReason;
+  details: string;
+  targetType: CaseTarget;
+  targetId: string;
+  targetTitle: string | null;
+  acknowledgeBy: number;
+  resolveBy: number;
+  acknowledgedAt: number | null;
+  resolvedAt: number | null;
+  resolution: string | null;
+  createdAt: number;
+  overdue: boolean;
+}
+
+/* ------------------------------------------------------ verification */
+
+/** A submission as the owner sees it (file keys are never returned). */
+export type MyVerification = Omit<Verification, "files">;
+
+export interface VerificationRequest {
+  kind: VerificationKind;
+  /** Listing id for NOCs and photos; omitted for KYC. */
+  subjectId?: string;
+  files: string[];
+  documentType?: "aadhaar" | "pan";
+  /** NOC expiry (epoch ms). */
+  expiresAt?: number;
+}
+
+export type DocUploadTicket =
+  | { mode: "direct"; uploadUrl: string; method: "PUT"; headers: Record<string, string>; path: string; expiresIn: number }
+  | { mode: "unsupported"; path: string };
 
 export interface SavedItem {
   property: PropertyCard;

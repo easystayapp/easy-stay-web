@@ -25,6 +25,12 @@ export function daysLeft(p: Pick<Property, "status" | "expiresAt">, now = new Da
   return Math.max(0, Math.ceil((p.expiresAt.getTime() - now.getTime()) / DAY_MS));
 }
 
+/** Most recent sign of life from the owner, for the "Updated X days ago" label. */
+export function freshAt(p: Pick<Property, "updatedAt" | "publishedAt" | "availabilityConfirmedAt">): Date | null {
+  const times = [p.updatedAt, p.publishedAt, p.availabilityConfirmedAt].filter((d): d is Date => !!d).map((d) => d.getTime());
+  return times.length ? new Date(Math.max(...times)) : null;
+}
+
 /** 1-based day of the current listing period. */
 export function listingDay(p: Pick<Property, "publishedAt">, now = new Date()): number | null {
   if (!p.publishedAt) return null;

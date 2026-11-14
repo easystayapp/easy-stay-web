@@ -6,14 +6,20 @@
 import { DomainError } from "@/lib/domain/errors";
 import {
   VERIFICATION_KINDS,
+  WOMEN_FIRST_CHECKS,
   emptySafety,
+  emptyWomenFirst,
+  womenFirstUntil,
   safetyBadge,
   verificationId,
   type PropertySafety,
   type Verification,
   type VerificationKind,
 } from "@/lib/domain/ops";
+import type { Property } from "@/lib/domain/types";
+import type { PropertyCard } from "@/types/api";
 import type { AuthUser } from "../../auth";
+import { toCard } from "../mappers";
 import { randomUUID } from "node:crypto";
 import { PATHS, getPrivateStorage, type Repositories } from "../../repositories";
 import { assertActive, audit, notify, patchMeta, requireAdmin, requireVerifiedEmail } from "./guard";
@@ -39,6 +45,17 @@ export async function createDocUploadTicket(repos: Repositories, auth: AuthUser,
   const path = `${docPrefix(auth.uid)}${randomUUID()}.${ext}`;
   const ticket = await getPrivateStorage().presignUpload(path, type);
   return ticket ? { mode: "direct" as const, ...ticket, url: undefined } : { mode: "unsupported" as const, path };
+}
+
+/** Fallback when storage can't presign (in-memory dev store): the file goes through the API. */
+export async function uploadDocThroughServer(repos: Repositories, auth: AuthUser, file: File) {
+  await assertActive(repos, auth);
+  if (!DOC_TYPES.includes(file.type)) throw new DomainError("invalid_input", "Use a JPG, PNG, WebP or PDF file.");
+  if (file.size <= 0 || file.size > MAX_DOC_BYTES) throw new DomainError("invalid_input", "Files must be under 10 MB.");
+  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+  const path = `${docPrefix(auth.uid)}${randomUUID()}.${ext}`;
+  await getPrivateStorage().upload(path, new Uint8Array(await file.arrayBuffer()), file.type);
+  return { path };
 }
 
 export async function submitVerification(
@@ -99,8 +116,21 @@ export async function getSafety(repos: Repositories, propertyId: string) {
 
 /** Batched badge lookup for lists: one getAll, not N reads. */
 export async function getSafetyMany(repos: Repositories, ids: string[]) {
+  if (!ids.length) return {};
   const rows = await safetyStore(repos).getMany(ids);
   return Object.fromEntries(rows.map((s) => [s.id, safetyBadge(s, Date.now())]));
+}
+
+/** Result cards with their safety facts, from one batched read. */
+export async function cardsWithSafety(repos: Repositories, list: Property[]): Promise<PropertyCard[]> {
+  const safety = await getSafetyMany(repos, list.map((p) => p.id));
+  return list.map((p) => toCard(p, safety[p.id] ?? null));
+}
+
+/** Ids of every listing with a current Women-First verification (one range query). */
+export async function womenFirstIds(repos: Repositories): Promise<Set<string>> {
+  const rows = await safetyStore(repos).query({ where: [["womenFirstUntil", ">", Date.now()]], limit: 2000 });
+  return new Set(rows.filter((s) => !s.hidden).map((s) => s.id));
 }
 
 /* ------------------------------------------------------------------ admin */
@@ -190,6 +220,27 @@ export async function setHealthScore(
   return { ok: true };
 }
 
+/** Record the Women-First site checks. Ticking all three starts a fresh validity window. */
+export async function setWomenFirst(
+  repos: Repositories,
+  auth: AuthUser,
+  propertyId: string,
+  body: Record<string, unknown>,
+) {
+  await requireAdmin(repos, auth);
+  if (!(await repos.properties.get(propertyId))) throw new DomainError("not_found", "Listing not found.");
+  const now = Date.now();
+  const before = (await safetyStore(repos).get(propertyId))?.womenFirst ?? emptyWomenFirst();
+  const checks = Object.fromEntries(WOMEN_FIRST_CHECKS.map((k) => [k, body[k] === true])) as Record<(typeof WOMEN_FIRST_CHECKS)[number], boolean>;
+  const womenFirst = { ...checks, verifiedAt: now };
+  await safetyStore(repos).merge(propertyId, { ...base(propertyId, now), womenFirst, womenFirstUntil: womenFirstUntil(womenFirst) });
+  await audit(repos, {
+    actorId: auth.uid, action: "women_first.set", targetType: "property", targetId: propertyId,
+    before, after: womenFirst, note: typeof body.note === "string" ? body.note.slice(0, 300) : null,
+  });
+  return { ok: true };
+}
+
 /** Hide (or restore) a listing. A hidden listing is paused and the owner can't resume it. */
 export async function moderateListing(
   repos: Repositories,
@@ -228,6 +279,8 @@ export async function adminListing(repos: Repositories, auth: AuthUser, id: stri
     city: p.location.city, locality: p.location.locality, ownerId: p.ownerId,
     ownerName: owner?.displayName ?? null, ownerEmail: owner?.email ?? null,
     photo: p.photos[0]?.url ?? null,
-    safety: safety ? { ...emptySafety(id, 0), ...safety, noc: { ...emptySafety(id, 0).noc, ...safety.noc } } : emptySafety(id, 0),
+    safety: safety
+      ? { ...emptySafety(id, 0), ...safety, noc: { ...emptySafety(id, 0).noc, ...safety.noc }, womenFirst: { ...emptyWomenFirst(), ...safety.womenFirst } }
+      : emptySafety(id, 0),
   };
 }

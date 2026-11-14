@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Plus } from "lucide-react";
+import { Heart, MessagesSquare, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +46,19 @@ export function SiteHeader() {
           )}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {user && (
+            <Link
+              href="/inbox"
+              aria-label="Inbox"
+              aria-current={pathname.startsWith("/inbox") ? "page" : undefined}
+              className={cx(
+                "flex size-11 items-center justify-center rounded-xl transition-colors hover:text-brand",
+                pathname.startsWith("/inbox") ? "bg-blush text-brand" : "text-ink hover:bg-surface",
+              )}
+            >
+              <MessagesSquare aria-hidden className="size-5" />
+            </Link>
+          )}
           {user && <NotificationBell />}
           <Link
             href="/saved"

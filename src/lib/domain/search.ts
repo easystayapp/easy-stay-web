@@ -16,17 +16,19 @@ import {
   type Amenity,
   type Furnishing,
   type Gender,
+  type GeoPoint,
   type Property,
   type PropertyType,
   type SharingOption,
 } from "./types";
 
-export const SORTS = ["newest", "rent_asc", "top_rated"] as const;
+export const SORTS = ["newest", "rent_asc", "top_rated", "distance"] as const;
 export type SearchSort = (typeof SORTS)[number];
 export const SORT_LABEL: Record<SearchSort, string> = {
   newest: "Newest",
   rent_asc: "Rent: low to high",
   top_rated: "Top rated",
+  distance: "Nearest first",
 };
 
 export const PAGE_SIZE = 12;
@@ -47,6 +49,11 @@ export interface SearchFilters {
   minRating: 3 | 4 | null;
   ownerRated4: boolean;
   areaRated4: boolean;
+  /** Women-First: only listings with admin-verified female caretaker, guard and well-lit access. */
+  womenFirst: boolean;
+  /** Seeker's position for the "distance" sort (rounded to ~100 m before it reaches the URL). */
+  userLat: number | null;
+  userLng: number | null;
   sort: SearchSort;
   page: number;
 }
@@ -67,6 +74,9 @@ export function emptyFilters(city: string): SearchFilters {
     minRating: null,
     ownerRated4: false,
     areaRated4: false,
+    womenFirst: false,
+    userLat: null,
+    userLng: null,
     sort: "newest",
     page: 1,
   };
@@ -84,6 +94,12 @@ const num = (v: string | null): number | null => {
   if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+};
+
+const coord = (v: string | null, max: number): number | null => {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
 };
 
 export function parseFilters(params: URLSearchParams, fallbackCity: string): SearchFilters {
@@ -106,6 +122,9 @@ export function parseFilters(params: URLSearchParams, fallbackCity: string): Sea
     minRating: rating === "4" ? 4 : rating === "3" ? 3 : null,
     ownerRated4: params.get("owner4") === "1",
     areaRated4: params.get("area4") === "1",
+    womenFirst: params.get("wf") === "1",
+    userLat: coord(params.get("lat"), 90),
+    userLng: coord(params.get("lng"), 180),
     sort: sort && (SORTS as readonly string[]).includes(sort) ? sort : "newest",
     page: Math.max(1, num(params.get("page")) ?? 1),
   };
@@ -127,6 +146,11 @@ export function serializeFilters(f: SearchFilters): URLSearchParams {
   if (f.minRating) p.set("rating", String(f.minRating));
   if (f.ownerRated4) p.set("owner4", "1");
   if (f.areaRated4) p.set("area4", "1");
+  if (f.womenFirst) p.set("wf", "1");
+  if (f.sort === "distance" && f.userLat != null && f.userLng != null) {
+    p.set("lat", f.userLat.toFixed(3));
+    p.set("lng", f.userLng.toFixed(3));
+  }
   if (f.sort !== "newest") p.set("sort", f.sort);
   if (f.page > 1) p.set("page", String(f.page));
   return p;
@@ -145,7 +169,8 @@ export function activeFilterCount(f: SearchFilters): number {
     (f.availableBy ? 1 : 0) +
     (f.minRating ? 1 : 0) +
     (f.ownerRated4 ? 1 : 0) +
-    (f.areaRated4 ? 1 : 0)
+    (f.areaRated4 ? 1 : 0) +
+    (f.womenFirst ? 1 : 0)
   );
 }
 
@@ -165,6 +190,13 @@ export function normalizeText(s: string): string[] {
     .filter(Boolean);
 }
 
+const TYPE_WORDS: Record<PropertyType, string> = {
+  pg: "pg pgs hostel hostels",
+  room: "room rooms",
+  flat: "flat flats apartment",
+  hotel: "hotel hotels lodge",
+};
+
 function searchableWords(p: Property): string[] {
   return normalizeText(
     [
@@ -173,7 +205,7 @@ function searchableWords(p: Property): string[] {
       p.location.city,
       p.location.address,
       PROPERTY_TYPE_LABEL[p.type],
-      p.type === "pg" ? "pg pgs hostel hostels" : p.type === "room" ? "room rooms" : "flat flats apartment",
+      TYPE_WORDS[p.type],
       SHARING_LABEL[p.sharing],
     ].join(" "),
   );
@@ -227,11 +259,24 @@ export function matchesFilters(p: Property, f: SearchFilters, now = new Date()):
   return true;
 }
 
-export function sortProperties(items: Property[], sort: SearchSort): Property[] {
+/** Great-circle distance in kilometres. */
+export function distanceKm(a: GeoPoint, b: GeoPoint): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+export function sortProperties(items: Property[], sort: SearchSort, from: GeoPoint | null = null): Property[] {
   const by = [...items];
   const newest = (a: Property, b: Property) =>
     (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
-  if (sort === "rent_asc") by.sort((a, b) => a.rent - b.rent || newest(a, b));
+  if (sort === "distance" && from) {
+    // Listings without a map pin go last, newest first.
+    const km = (p: Property) => (p.location.geo ? distanceKm(from, p.location.geo) : Infinity);
+    by.sort((a, b) => km(a) - km(b) || newest(a, b));
+  } else if (sort === "rent_asc") by.sort((a, b) => a.rent - b.rent || newest(a, b));
   else if (sort === "top_rated")
     by.sort((a, b) => (b.ratingSummary.average ?? 0) - (a.ratingSummary.average ?? 0) || newest(a, b));
   else by.sort(newest);
@@ -245,7 +290,7 @@ export function sortProperties(items: Property[], sort: SearchSort): Property[] 
 export function searchHeading(f: SearchFilters, areas: string[] = []): string {
   const noun =
     f.types.length === 1
-      ? { pg: "PGs", room: "Rooms", flat: "Flats" }[f.types[0]]
+      ? TYPE_PLURAL[f.types[0]]
       : "Places to stay";
   if (!f.q) return `${noun} in ${f.city}`;
   const q = f.q.trim().toLowerCase();
@@ -255,6 +300,8 @@ export function searchHeading(f: SearchFilters, areas: string[] = []): string {
   });
   return isArea ? `${noun} in ${titleCase(f.q)}` : `${noun} matching “${f.q}” in ${f.city}`;
 }
+
+export const TYPE_PLURAL: Record<PropertyType, string> = { pg: "PGs", room: "Rooms", flat: "Flats", hotel: "Hotels" };
 
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 

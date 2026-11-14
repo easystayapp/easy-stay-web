@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cx } from "@/lib/client/cx";
 
 /** Screens with their own sticky action bar. */
-const HIDE_ON = [/^\/properties\/[^/]+(\/rate)?$/, /^\/my-listings\/new$/, /^\/my-listings\/[^/]+\/edit$/];
+const HIDE_ON = [/^\/properties\/[^/]+(\/rate)?$/, /^\/my-listings\/new$/, /^\/my-listings\/[^/]+\/edit$/, /^\/inbox\/[^/]+$/];
 
 /** Phone navigation. Adds "My listings" when owner tools are on. */
 export function BottomNav() {

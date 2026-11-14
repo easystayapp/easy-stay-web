@@ -20,7 +20,8 @@ async function loadCatalog(repos: Repositories): Promise<Catalog> {
     defaultCity: cities.find((c) => c.id === app?.defaultCityId)?.label ?? fallback,
     home: { budgets: [], categories: [], steps: [], highlights: [], faqs: [], ...home },
     welcome: welcome ?? { roles: [] },
-    greetings: app?.greetings ?? { pg: "", room: "", flat: "" },
+    // Configs saved before a type existed have no greeting for it.
+    greetings: { pg: "", room: "", flat: "", hotel: "", ...app?.greetings },
   };
 }
 

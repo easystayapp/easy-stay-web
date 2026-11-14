@@ -13,7 +13,7 @@ export type ID = string;
 
 /* ------------------------------------------------------------------ enums */
 
-export const PROPERTY_TYPES = ["pg", "room", "flat"] as const;
+export const PROPERTY_TYPES = ["pg", "room", "flat", "hotel"] as const;
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
 
 export const SHARING_OPTIONS = [

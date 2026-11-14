@@ -1,11 +1,11 @@
 "use client";
 
-import { BedDouble, Building2, House, MapPin, TrendingUp } from "lucide-react";
+import { BedDouble, Building2, Hotel, House, MapPin, TrendingUp } from "lucide-react";
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { useCatalog } from "@/hooks/use-catalog";
 import { api } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
-import { normalizeText } from "@/lib/domain/search";
+import { normalizeText, TYPE_PLURAL } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
 
 const MAX_AREAS = 7;
@@ -44,8 +44,8 @@ export interface LocalitySelection {
   type: PropertyType | null;
 }
 
-const TYPE_NOUN: Record<PropertyType, string> = { pg: "PGs", room: "Rooms", flat: "Flats" };
-const TYPE_ICON = { pg: Building2, room: BedDouble, flat: House } as const;
+const TYPE_NOUN: Record<PropertyType, string> = TYPE_PLURAL;
+const TYPE_ICON = { pg: Building2, room: BedDouble, flat: House, hotel: Hotel } as const;
 
 /** "Gachibowli (Telecom Nagar, …)" → area "Gachibowli", detail "Telecom Nagar, …". */
 function split(name: string): Pick<AreaOption, "area" | "detail"> {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useSaved } from "@/hooks/use-saved";
 import { PhotoSlider } from "@/components/property/photo-slider";
+import { CardSafetyRow, FreshnessLabel } from "@/components/property/safety-badges";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RatingPill, Tag } from "@/components/ui/primitives";
 import { cx } from "@/lib/client/cx";
@@ -98,7 +99,11 @@ export function PropertyCard({ p, imageHeight = "h-[180px]" }: { p: Card; imageH
           {p.locality}, {p.city}
         </span>
         <span className="text-xs font-semibold text-muted-2">{cardTags(p)}</span>
-        <Rent rent={p.rent} size="lg" />
+        <CardSafetyRow safety={p.safety} />
+        <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <Rent rent={p.rent} size="lg" />
+          <FreshnessLabel at={p.freshAt} />
+        </span>
       </div>
     </Link>
   );

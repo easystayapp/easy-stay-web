@@ -40,3 +40,8 @@ export function parseDayKey(key: string): Date | null {
   const d = new Date(`${key}T00:00:00+05:30`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+/** The instant an IST wall-clock hour starts on a given day key. */
+export function istHour(key: string, hour: number): number {
+  return new Date(`${key}T${String(hour).padStart(2, "0")}:00:00+05:30`).getTime();
+}

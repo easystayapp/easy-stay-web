@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronLeft, ChevronRight, Heart, KeyRound, LayoutGrid, LifeBuoy, Settings, Star, type LucideIcon } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Flag, Heart, KeyRound, LayoutGrid, LifeBuoy, MessagesSquare, Settings, ShieldCheck, Star, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -117,6 +117,8 @@ function PersonalDetails({ me }: { me: Me }) {
           <span className="eyebrow">Owner settings</span>
           <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
             <Row href={tabHref("listings")} icon={LayoutGrid} label="My listings" />
+            <Row href="/inbox?as=owner" icon={MessagesSquare} label="Enquiries & visits" />
+            <Row href="/owner/verification" icon={ShieldCheck} label="Verification & safety" hint="KYC and fire / structural / electrical NOCs" />
             <Row href={tabHref("owner-settings")} icon={Settings} label="Contact & notification settings" hint={`Listing number ${formatPhone(me.owner?.contactPhone)}`} />
             <Row href={tabHref("notifications")} icon={Bell} label="Expiry reminders" />
           </div>
@@ -126,8 +128,10 @@ function PersonalDetails({ me }: { me: Me }) {
       <div className="flex flex-col gap-2">
         {me.ownerToolsOn && <span className="eyebrow">Finding a place</span>}
         <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
+          <Row href="/inbox" icon={MessagesSquare} label="Messages & visits" />
           <Row href={tabHref("saved")} icon={Heart} label="Saved properties" badge={me.savedCount} />
           <Row href={tabHref("ratings")} icon={Star} label="My ratings" />
+          <Row href="/profile/reports" icon={Flag} label="Reports & grievances" hint="Track what you've reported" />
           <Row href="/help" icon={LifeBuoy} label="Help & support" />
         </div>
       </div>

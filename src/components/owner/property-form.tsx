@@ -107,6 +107,7 @@ export function BasicsFields({ input, set, errors, contactPhone, withPhotos }: F
         </Label>
         <OptionGrid
           label="Property type"
+          columns={2}
           options={PROPERTY_TYPES.map((t) => ({ value: t, label: PROPERTY_TYPE_LABEL[t] }))}
           value={input.type}
           onChange={(t) => set({ type: t, sharing: SHARING_BY_TYPE[t][0] })}
