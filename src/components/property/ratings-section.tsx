@@ -26,7 +26,7 @@ export function RatingsSection({
   return (
     <section id="ratings" className="flex scroll-mt-24 flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-extrabold">Ratings</h2>
+        <h3 className="text-base font-extrabold">Overall rating</h3>
         <button type="button" onClick={onRate} className="text-sm font-bold text-brand hover:text-brand-dark">
           Rate this property
         </button>

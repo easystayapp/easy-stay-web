@@ -9,6 +9,7 @@ import { CardSafetyRow, FreshnessLabel } from "@/components/property/safety-badg
 import { PropertyImage } from "@/components/ui/property-image";
 import { RatingPill, Tag } from "@/components/ui/primitives";
 import { cx } from "@/lib/client/cx";
+import { areaName } from "@/lib/domain/landing";
 import { AMENITY_LABEL, FURNISHING_LABEL, GENDER_LABEL, PROPERTY_TYPE_SHORT } from "@/lib/domain/catalog";
 import type { PropertyCard as Card } from "@/types/api";
 import { availabilityLabel, formatRupees } from "@/lib/domain/format";
@@ -94,9 +95,9 @@ export function PropertyCard({ p, imageHeight = "h-[180px]" }: { p: Card; imageH
           <span className="text-base leading-snug font-bold group-hover:text-brand-dark">{p.title}</span>
           <RatingPill average={p.rating.average} count={p.rating.count} />
         </div>
-        <span className="flex items-center gap-1 text-[13px] text-muted-foreground">
-          <MapPin aria-hidden className="size-3.5" />
-          {p.locality}, {p.city}
+        <span className="flex min-w-0 items-center gap-1 text-[13px] text-muted-foreground">
+          <MapPin aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">{areaName(p.locality)}, {p.city}</span>
         </span>
         <span className="text-xs font-semibold text-muted-2">{cardTags(p)}</span>
         <CardSafetyRow safety={p.safety} />

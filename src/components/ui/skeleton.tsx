@@ -75,34 +75,51 @@ export function ResultsPageSkeleton() {
 export function PropertyDetailSkeleton() {
   return (
     <SkeletonRegion label="Loading property" className="container-page pb-32 md:py-6 md:pb-16">
-      <Skeleton className="h-[260px] w-full rounded-[24px] md:h-[400px]" />
+      {/* Title block (above the photos on desktop) */}
+      <div className="mb-5 hidden items-end justify-between gap-6 md:flex">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-9 w-96 max-w-full" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-11 w-24 rounded-xl" />
+          <Skeleton className="h-11 w-24 rounded-xl" />
+        </div>
+      </div>
+      <Skeleton className="h-[280px] w-full rounded-none sm:rounded-[24px] md:h-[420px]" />
+      <div className="mt-3 hidden grid-cols-8 gap-2 md:grid">
+        {Array.from({ length: 8 }, (_, i) => (
+          <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
+        ))}
+      </div>
+      <div className="mt-5 flex flex-col gap-3 md:hidden">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
       <div className="mt-6 grid gap-10 md:mt-8 lg:grid-cols-[1fr_360px]">
-        <div className="flex min-w-0 flex-col gap-8">
+        <div className="flex min-w-0 flex-col gap-10">
+          <Skeleton className="h-[150px] w-full rounded-[22px]" />
+          <div className="flex gap-4 border-b border-line pb-3.5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-5 w-16" />
+            ))}
+          </div>
           <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <Skeleton className="h-6 w-28" />
-              <Skeleton className="h-6 w-24" />
-            </div>
-            <Skeleton className="h-9 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-7 w-52" />
+            <Skeleton className="h-[170px] w-full rounded-[20px]" />
           </div>
-          <Skeleton className="h-[120px] w-full rounded-2xl" />
           <div className="flex flex-col gap-3">
-            <Skeleton className="h-6 w-32" />
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-24 rounded-full" />
-              <Skeleton className="h-10 w-28 rounded-full" />
-              <Skeleton className="h-10 w-20 rounded-full" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-60" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-14 rounded-2xl" />
+              ))}
             </div>
           </div>
-          <div className="flex flex-col gap-2.5">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-          <Skeleton className="h-[220px] w-full rounded-2xl" />
         </div>
         <aside className="hidden lg:block">
           <div className="flex flex-col gap-4 rounded-[24px] border border-line p-6">

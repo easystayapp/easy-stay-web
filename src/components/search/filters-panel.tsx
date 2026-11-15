@@ -122,12 +122,12 @@ function groupsFor(f: SearchFilters, set: (patch: Partial<SearchFilters>) => voi
 const RENT_MAX = 50_000;
 const RENT_STEP = 500;
 
-function RentInputs({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void }) {
+function RentInputs({ f, set, compact }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void; compact?: boolean }) {
   // Remount when filters change from outside (Reset, chips, URL) so slider and boxes follow.
-  return <RentRange key={`${f.minRent ?? ""}-${f.maxRent ?? ""}`} f={f} set={set} />;
+  return <RentRange key={`${f.minRent ?? ""}-${f.maxRent ?? ""}`} f={f} set={set} compact={compact} />;
 }
 
-function RentRange({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void }) {
+function RentRange({ f, set, compact }: { f: SearchFilters; set: (p: Partial<SearchFilters>) => void; compact?: boolean }) {
   const id = useId();
   const [range, setRange] = useState<[number, number]>([Math.min(f.minRent ?? 0, RENT_MAX), Math.min(f.maxRent ?? RENT_MAX, RENT_MAX)]);
   // Text shown in the boxes: follows the slider while dragging, and holds what you type
@@ -147,10 +147,10 @@ function RentRange({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilter
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cx("flex flex-col", compact ? "gap-2.5" : "gap-3")}>
       <div className="flex items-baseline justify-between">
-        <span className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Selected</span>
-        <span className="text-sm font-extrabold text-brand-dark" aria-live="polite">{label}</span>
+        <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Selected</span>
+        <span className={cx("font-extrabold text-brand-dark", compact ? "text-[13px]" : "text-sm")} aria-live="polite">{label}</span>
       </div>
       <div className="px-1">
         <Slider
@@ -174,10 +174,10 @@ function RentRange({ f, set }: { f: SearchFilters; set: (p: Partial<SearchFilter
       <div className="grid grid-cols-2 gap-2.5">
         {(["minRent", "maxRent"] as const).map((k) => (
           <Field key={k} className="gap-1.5">
-            <FieldLabel htmlFor={`${id}-${k}`} className="text-[11px] text-muted-foreground">
+            <FieldLabel htmlFor={`${id}-${k}`} className={cx("text-muted-foreground", compact ? "text-[10px]" : "text-[11px]")}>
               {k === "minRent" ? "Minimum" : "Maximum"}
             </FieldLabel>
-            <InputGroup className="h-12">
+            <InputGroup className={compact ? "h-9 text-[13px]" : "h-12"}>
               <InputGroupAddon>
                 <InputGroupText className="font-bold text-foreground">₹</InputGroupText>
               </InputGroupAddon>
@@ -225,9 +225,9 @@ function ChipToggle({ on, onClick, children }: { on: boolean; onClick: () => voi
 
 function CheckRow({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: () => void }) {
   return (
-    <div className="flex min-h-6 items-center gap-3">
-      <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
-      <Label htmlFor={id} className="cursor-pointer text-sm leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
+    <div className="flex min-h-5 items-center gap-2.5">
+      <Checkbox id={id} checked={checked} onCheckedChange={onChange} className="size-4" />
+      <Label htmlFor={id} className="cursor-pointer text-[13px] leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
         {label}
       </Label>
     </div>
@@ -238,24 +238,24 @@ function CheckRow({ id, label, checked, onChange }: { id: string; label: string;
 function ListGroup({ g }: { g: Group }) {
   const id = useId();
   return (
-    <div className="border-t border-line-3 pt-5">
-    <FieldSet className="gap-3.5">
+    <div className="border-t border-line-3 pt-4">
+    <FieldSet className="gap-2.5">
       {/* A legend is outside the flex flow, so it needs its own bottom margin. */}
-      <FieldLegend className="mb-3.5 text-sm font-extrabold">{g.label}</FieldLegend>
+      <FieldLegend className="mb-2.5 font-extrabold data-[variant=legend]:text-[13px]">{g.label}</FieldLegend>
       {g.kind === "multi" ? (
         g.options.length > 3 ? (
-          <MultiSelect label={g.label} options={g.options} value={g.value} onChange={g.set} placeholder="Any" />
+          <MultiSelect compact label={g.label} options={g.options} value={g.value} onChange={g.set} placeholder="Any" />
         ) : (
           g.options.map((o) => (
             <CheckRow key={o.value} id={`${id}-${o.value}`} label={o.label} checked={g.value.includes(o.value)} onChange={() => g.set(toggleIn(g.value, o.value))} />
           ))
         )
       ) : (
-        <RadioGroup value={g.value ?? "any"} onValueChange={(v) => g.set(v === "any" ? null : v)} className="gap-3.5" aria-label={g.label}>
+        <RadioGroup value={g.value ?? "any"} onValueChange={(v) => g.set(v === "any" ? null : v)} className="gap-2.5" aria-label={g.label}>
           {[{ value: "any", label: "Any" }, ...g.options].map((o) => (
-            <div key={o.value} className="flex min-h-6 items-center gap-3">
-              <RadioGroupItem id={`${id}-${o.value}`} value={o.value} />
-              <Label htmlFor={`${id}-${o.value}`} className="cursor-pointer text-sm leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
+            <div key={o.value} className="flex min-h-5 items-center gap-2.5">
+              <RadioGroupItem id={`${id}-${o.value}`} value={o.value} className="size-4" />
+              <Label htmlFor={`${id}-${o.value}`} className="cursor-pointer text-[13px] leading-none font-semibold text-muted-2 transition-colors peer-data-[state=checked]:text-ink">
                 {o.label}
               </Label>
             </div>
@@ -285,10 +285,10 @@ export function FiltersPanel({
   const groups = groupsFor(filters, set);
 
   return (
-    <div className={cx("flex flex-col", variant === "chips" ? "gap-7" : "gap-5")}>
+    <div className={cx("flex flex-col", variant === "chips" ? "gap-7" : "gap-4")}>
       <div className="flex flex-col gap-3">
-        <span className={variant === "chips" ? "text-[15px] font-extrabold" : "text-sm font-extrabold"}>Monthly rent</span>
-        <RentInputs f={filters} set={set} />
+        <span className={variant === "chips" ? "text-[15px] font-extrabold" : "text-[13px] font-extrabold"}>Monthly rent</span>
+        <RentInputs f={filters} set={set} compact={variant === "list"} />
       </div>
       {groups.map((g) =>
         variant === "list" ? (

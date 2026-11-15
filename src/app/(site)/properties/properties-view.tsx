@@ -90,16 +90,16 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
   const count = activeFilterCount(filters);
 
   return (
-    <div className="container-page grid gap-8 py-6 md:py-8 lg:grid-cols-[280px_1fr]">
+    <div className="container-page grid gap-8 py-6 md:py-8 lg:grid-cols-[264px_1fr]">
       {/* Web sidebar */}
-      <aside className="hidden self-start rounded-[20px] border border-line lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 pt-5 pb-3">
-          <span className="text-lg font-extrabold">Filters</span>
-          <button type="button" className="text-sm font-bold text-brand hover:text-brand-dark" onClick={() => apply(resetFilters(filters))}>
+      <aside className="hidden self-start rounded-[20px] border border-line lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-4 pt-4 pb-2.5">
+          <span className="text-base font-extrabold">Filters</span>
+          <button type="button" className="text-[13px] font-bold text-brand hover:text-brand-dark" onClick={() => apply(resetFilters(filters))}>
             Reset
           </button>
         </div>
-        <div className="px-5 pt-4 pb-5">
+        <div className="px-4 pt-3 pb-4">
           <FiltersPanel filters={filters} onChange={apply} variant="list" />
         </div>
       </aside>
@@ -130,18 +130,18 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
           <button
             type="button"
             onClick={() => setSheet(filters)}
-            className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-brand px-4 text-[13px] font-bold text-white lg:hidden"
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand px-3.5 text-xs font-bold text-white lg:hidden"
           >
-            <SlidersHorizontal aria-hidden className="size-4" />
+            <SlidersHorizontal aria-hidden className="size-3.5" />
             Filters{count ? ` · ${count}` : ""}
           </button>
           {!filters.womenFirst && (
             <button
               type="button"
               onClick={() => apply({ ...filters, womenFirst: true, page: 1 })}
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-tag-line bg-white px-3.5 text-[13px] font-bold text-tag-dark hover:bg-tag-bg"
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-tag-line bg-white px-3 text-xs font-bold text-tag-dark hover:bg-tag-bg lg:hidden"
             >
-              <Sparkles aria-hidden className="size-4" />
+              <Sparkles aria-hidden className="size-3.5" />
               Women-First
             </button>
           )}
@@ -151,25 +151,21 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
               type="button"
               onClick={c.remove}
               aria-label={`Remove filter ${c.label}`}
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-tag-bg px-3.5 text-[13px] font-semibold text-tag-dark hover:bg-tag-bg-hover"
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-tag-bg px-3 text-xs font-semibold text-tag-dark hover:bg-tag-bg-hover"
             >
               {c.label}
-              <X aria-hidden className="size-3.5" />
+              <X aria-hidden className="size-3" />
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[22px] font-extrabold tracking-tight md:text-[28px]">
-            {searchHeading(filters, areas)}
-            {data && (
-              <span className="ml-2 text-base font-semibold text-muted-foreground">
-                <span className="sr-only">, </span>
-                {data.total}
-                <span className="sr-only"> {data.total === 1 ? "place" : "places"}</span>
-              </span>
-            )}
-          </h1>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="text-[22px] leading-tight font-extrabold tracking-tight md:text-[28px]">{searchHeading(filters, areas)}</h1>
+            <p aria-live="polite" className="min-h-5 text-sm font-semibold text-muted-foreground">
+              {data ? `${data.total} ${data.total === 1 ? "place" : "places"} found` : ""}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="sort" className="text-muted-foreground">Sort</Label>
             <Select value={filters.sort} onValueChange={(v) => sortBy(v as SearchSort)} disabled={locating}>

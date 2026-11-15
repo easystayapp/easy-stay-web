@@ -298,7 +298,8 @@ export function searchHeading(f: SearchFilters, areas: string[] = []): string {
     const name = a.toLowerCase();
     return name === q || name.split(" (")[0] === q;
   });
-  return isArea ? `${noun} in ${titleCase(f.q)}` : `${noun} matching “${f.q}” in ${f.city}`;
+  // "Gachibowli (Telecom Nagar, …)" reads as just "Gachibowli" in a heading.
+  return isArea ? `${noun} in ${titleCase(f.q.split(/[(,/|-]/)[0].trim())}` : `${noun} matching “${f.q}” in ${f.city}`;
 }
 
 export const TYPE_PLURAL: Record<PropertyType, string> = { pg: "PGs", room: "Rooms", flat: "Flats", hotel: "Hotels" };
