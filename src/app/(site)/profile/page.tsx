@@ -3,7 +3,7 @@
 import { Bell, ChevronLeft, ChevronRight, Flag, Heart, KeyRound, LayoutGrid, LifeBuoy, MessagesSquare, Settings, ShieldCheck, Star, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/auth/guards";
 import { MyListingsSection } from "@/components/profile/my-listings-section";
 import { MyRatingsSection } from "@/components/profile/my-ratings-section";
@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Avatar, ErrorNote } from "@/components/ui/primitives";
-import { ProfileSkeleton } from "@/components/ui/skeleton";
+import { ProfileSkeleton } from "@/components/ui/profile-skeleton";
+import { storeOwnerHint } from "@/lib/client/prefs";
 import { api, errorMessage } from "@/lib/client/api";
 import type { Me } from "@/types/api";
 import { formatPhone } from "@/lib/domain/format";
@@ -152,18 +153,25 @@ function PersonalDetails({ me }: { me: Me }) {
   );
 }
 
+/** Remembers whether this account is an owner, so the next load's skeleton draws the right layout. */
+function OwnerHint({ on }: { on: boolean }) {
+  useEffect(() => storeOwnerHint(on), [on]);
+  return null;
+}
+
 /** 10 · Profile (owner tools off) · 23 · Profile (owner tools on). Every section opens in place. */
 function ProfileTabs() {
   const params = useSearchParams();
   const requested = params.get("tab") as ProfileTab | null;
   return (
-    <RequireAuth title="Log in to see your profile" fallback={<ProfileSkeleton />}>
+    <RequireAuth title="Log in to see your profile" fallback={<ProfileSkeleton tab={requested} />}>
       {(me) => {
         const ownerOnly: ProfileTab[] = ["owner-settings", "listings", "notifications"];
         const tab: ProfileTab =
           requested && PROFILE_TABS.includes(requested) && (me.ownerToolsOn || !ownerOnly.includes(requested)) ? requested : "details";
         return (
           <ProfileShell me={me} active={tab}>
+            <OwnerHint on={me.ownerToolsOn} />
             {tab !== "details" && (
               <Link href={tabHref("details")} scroll={false} className="mb-4 inline-flex items-center gap-1 text-sm font-bold md:hidden">
                 <ChevronLeft aria-hidden className="size-4" /> Profile

@@ -207,17 +207,18 @@ export function MyListingsSkeleton({ embedded = false }: { embedded?: boolean })
   return (
     <SkeletonRegion label="Loading your listings" className={embedded ? "flex flex-col gap-6" : "container-page flex flex-col gap-6 py-6 md:py-10"}>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2.5">
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-8 w-44 md:h-9" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+        {/* greeting 16 + title 45 + subtitle 20 + gaps = 89px, as on the real page */}
+        <div className="flex flex-col gap-1">
+          <div className="flex h-4 items-center"><Skeleton className="h-3 w-16" /></div>
+          <div className="flex h-[45px] items-center"><Skeleton className="h-8 w-44 md:h-9" /></div>
+          <div className="flex h-5 items-center"><Skeleton className="h-4 w-72 max-w-full" /></div>
         </div>
         <Skeleton className="h-[54px] w-40 rounded-[14px] max-sm:w-full" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="rounded-[20px] border border-line p-4">
+          <div key={i} className="h-24 rounded-[20px] border border-line p-4">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="mt-3 h-7 w-12" />
           </div>
@@ -265,8 +266,8 @@ export function MyListingsSkeleton({ embedded = false }: { embedded?: boolean })
             <Skeleton key={i} className="h-3" style={{ width: w }} />
           ))}
         </div>
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="flex items-center gap-6 border-t border-line px-4 py-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="flex h-[73px] items-center gap-6 border-t border-line px-4">
             <div className="flex w-[240px] items-center gap-3">
               <Skeleton className="size-12 shrink-0 rounded-xl" />
               <div className="flex flex-1 flex-col gap-2">
@@ -287,77 +288,6 @@ export function MyListingsSkeleton({ embedded = false }: { embedded?: boolean })
           </div>
         ))}
       </div>
-    </SkeletonRegion>
-  );
-}
-
-/* ----------------------------------------------------------------- profile */
-
-/** A grouped list of tappable rows (icon, two text lines, chevron), as on the profile page. */
-function ProfileRowsSkeleton({ rows }: { rows: number }) {
-  return (
-    <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex items-center gap-3.5 px-4 py-3.5">
-          <Skeleton className="size-5 shrink-0 rounded-md" />
-          <div className="flex flex-1 flex-col gap-1.5">
-            <Skeleton className="h-4 w-40" />
-            {i === 0 && <Skeleton className="h-3 w-56 max-w-full" />}
-          </div>
-          <Skeleton className="size-4 rounded-md" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Mirrors the "Profile" tab: title, account card, role banner, grouped link rows and the phone log-out button. */
-export function ProfileDetailsSkeleton() {
-  return (
-    <div className="flex flex-col gap-6">
-      <Skeleton className="h-8 w-28 md:h-9" />
-      <div className="flex items-center gap-4 rounded-[22px] border border-line p-5">
-        <Skeleton className="size-14 shrink-0 rounded-full" />
-        <div className="flex flex-1 flex-col gap-2">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <Skeleton className="h-4 w-8" />
-      </div>
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface px-4 py-3.5">
-        <Skeleton className="h-3 w-14 bg-white" />
-        <Skeleton className="h-4 w-64 max-w-full bg-white" />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-3 w-24" />
-        <ProfileRowsSkeleton rows={3} />
-      </div>
-      <Skeleton className="h-[50px] w-full rounded-[14px] md:hidden" />
-    </div>
-  );
-}
-
-/** Whole profile page: account side navigation (desktop) beside the details content. */
-export function ProfileSkeleton() {
-  return (
-    <SkeletonRegion label="Loading your profile" className="container-page grid gap-8 py-6 md:grid-cols-[260px_1fr] md:py-10">
-      <div className="hidden self-start rounded-[22px] border border-line p-4 md:block">
-        <div className="mb-4 flex items-center gap-3 border-b border-line pb-4">
-          <Skeleton className="size-11 rounded-full" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3 w-14" />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          {[120, 104, 136, 96, 112, 100].map((w, i) => (
-            <div key={i} className="flex h-10 items-center px-3">
-              <Skeleton className="h-4" style={{ width: w }} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <ProfileDetailsSkeleton />
     </SkeletonRegion>
   );
 }

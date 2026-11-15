@@ -27,6 +27,14 @@ export function deviceId(): string {
   return id;
 }
 
+/** Last known "owner tools on" state, so the profile skeleton can draw the right layout before login resolves. */
+export function ownerHint(): boolean {
+  return read("es.owner") === "1";
+}
+export function storeOwnerHint(on: boolean) {
+  write("es.owner", on ? "1" : "0");
+}
+
 export function storedCity(): string | null {
   return read("es.city");
 }
