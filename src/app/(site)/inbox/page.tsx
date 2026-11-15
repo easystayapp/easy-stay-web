@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/auth/guards";
 import { PropertyImage } from "@/components/ui/property-image";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { ListRowsSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorNote, Segmented } from "@/components/ui/primitives";
 import { ButtonLink } from "@/components/ui/button";
 import { api, errorMessage } from "@/lib/client/api";
@@ -109,7 +109,7 @@ function Inbox({ me }: { me: Me }) {
       )}
       {error && <ErrorNote>{error}</ErrorNote>}
       {!items ? (
-        !error && <PageSpinner label="Loading conversations" />
+        !error && <ListRowsSkeleton label="Loading conversations" />
       ) : items.length === 0 ? (
         <EmptyState
           icon={<MessagesSquare className="size-7" />}
@@ -135,7 +135,7 @@ function Inbox({ me }: { me: Me }) {
 /** Enquiries, visit requests and chats, for seekers and owners. */
 export default function InboxPage() {
   return (
-    <Suspense fallback={<PageSpinner />}>
+    <Suspense fallback={<ListRowsSkeleton label="Loading conversations" />}>
       <RequireAuth title="Log in to see your messages">{(me) => <Inbox me={me} />}</RequireAuth>
     </Suspense>
   );

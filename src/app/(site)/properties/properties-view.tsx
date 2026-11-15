@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { PropertyGridSkeleton, ResultsPageSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
 import { useToast } from "@/hooks/use-toast";
 import { cx } from "@/lib/client/cx";
@@ -190,7 +190,7 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
         {error ? (
           <ErrorNote>{error}</ErrorNote>
         ) : !data ? (
-          <PageSpinner label="Loading properties" />
+          <PropertyGridSkeleton />
         ) : data.items.length === 0 ? (
           <EmptyState
             icon={<SearchX className="size-7" />}
@@ -273,7 +273,7 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
 
 export function PropertiesView({ initial }: { initial: InitialResults | null }) {
   return (
-    <Suspense fallback={<PageSpinner />}>
+    <Suspense fallback={<ResultsPageSkeleton />}>
       <ResultsView initial={initial} />
     </Suspense>
   );

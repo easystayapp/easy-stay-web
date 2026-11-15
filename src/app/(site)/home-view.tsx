@@ -13,7 +13,7 @@ import { useCity } from "@/hooks/use-city";
 import { ButtonLink } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar } from "@/components/ui/primitives";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { PropertyGridSkeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/reveal";
 import { api } from "@/lib/client/api";
 import { cx } from "@/lib/client/cx";
@@ -254,7 +254,7 @@ export function HomeView() {
           </Link>
         </div>
         {items === null ? (
-          <PageSpinner />
+          <PropertyGridSkeleton count={3} />
         ) : items.length === 0 ? (
           <p className="rounded-[20px] bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
             No listings in {city} yet. Check back soon — or list your own place.

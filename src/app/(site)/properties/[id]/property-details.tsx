@@ -19,7 +19,7 @@ import { useSaved } from "@/hooks/use-saved";
 import { useToast } from "@/hooks/use-toast";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Avatar, EmptyState, StarIcon, StatusBadge, Tag } from "@/components/ui/primitives";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { PropertyDetailSkeleton } from "@/components/ui/skeleton";
 import { api, ApiError, errorMessage } from "@/lib/client/api";
 import { deviceId } from "@/lib/client/prefs";
 import {
@@ -117,7 +117,7 @@ export function PropertyDetails() {
       </div>
     );
   }
-  if (!p || !ratings) return <PageSpinner label="Loading property" />;
+  if (!p || !ratings) return <PropertyDetailSkeleton />;
 
   const avail = availabilityLabel(p.availableFrom ? new Date(p.availableFrom) : null);
   const live = p.status === "active";

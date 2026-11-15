@@ -7,7 +7,7 @@ import { RequireOwner } from "@/components/auth/guards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorNote, Segmented } from "@/components/ui/primitives";
 import { useToast } from "@/hooks/use-toast";
 import { api, errorMessage } from "@/lib/client/api";
@@ -227,7 +227,7 @@ function Verification() {
   }, [load]);
 
   if (error && !data) return <div className="container-page py-10"><ErrorNote>{error}</ErrorNote></div>;
-  if (!data) return <PageSpinner label="Loading verification" />;
+  if (!data) return <div className="container-page max-w-3xl py-6 md:py-10"><CardListSkeleton rows={2} label="Loading verification" /></div>;
   const find = (kind: VerificationKind, subjectId?: string) =>
     data.verifications.find((v) => v.kind === kind && (subjectId ? v.subjectId === subjectId : true));
   const expiringSoon = data.verifications.some(needsRenewal);

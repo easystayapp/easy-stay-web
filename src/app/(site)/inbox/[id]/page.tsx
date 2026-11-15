@@ -10,7 +10,7 @@ import { VisitPicker } from "@/components/enquiry/visit-picker";
 import { SosButton } from "@/components/safety/sos-button";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { Button, buttonClass } from "@/components/ui/button";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { ThreadSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/primitives";
 import { PropertyImage } from "@/components/ui/property-image";
 import { Textarea } from "@/components/ui/textarea";
@@ -146,7 +146,7 @@ function Thread({ id }: { id: string }) {
       </div>
     );
   }
-  if (!thread) return <PageSpinner label="Loading conversation" />;
+  if (!thread) return <ThreadSkeleton />;
 
   const { enquiry: e, side, contact } = thread;
   const owner = side === "owner";

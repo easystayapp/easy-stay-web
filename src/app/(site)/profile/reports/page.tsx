@@ -7,7 +7,7 @@ import { RequireAuth } from "@/components/auth/guards";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -158,7 +158,7 @@ function Reports() {
       </div>
       {error && <ErrorNote>{error}</ErrorNote>}
       {!items ? (
-        !error && <PageSpinner label="Loading reports" />
+        !error && <CardListSkeleton label="Loading reports" />
       ) : items.length === 0 ? (
         <EmptyState icon={<Flag className="size-7" />} title="Nothing reported" body="Reports you make on listings, and grievances you raise, show up here with their status." />
       ) : (
