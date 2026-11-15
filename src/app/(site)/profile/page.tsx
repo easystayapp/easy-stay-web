@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Avatar, ErrorNote } from "@/components/ui/primitives";
+import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
 import type { Me } from "@/types/api";
 import { formatPhone } from "@/lib/domain/format";
@@ -156,7 +157,7 @@ function ProfileTabs() {
   const params = useSearchParams();
   const requested = params.get("tab") as ProfileTab | null;
   return (
-    <RequireAuth title="Log in to see your profile">
+    <RequireAuth title="Log in to see your profile" fallback={<ProfileSkeleton />}>
       {(me) => {
         const ownerOnly: ProfileTab[] = ["owner-settings", "listings", "notifications"];
         const tab: ProfileTab =
@@ -183,7 +184,7 @@ function ProfileTabs() {
 
 export default function ProfilePage() {
   return (
-    <Suspense>
+    <Suspense fallback={<ProfileSkeleton />}>
       <ProfileTabs />
     </Suspense>
   );

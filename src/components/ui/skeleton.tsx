@@ -290,3 +290,74 @@ export function MyListingsSkeleton({ embedded = false }: { embedded?: boolean })
     </SkeletonRegion>
   );
 }
+
+/* ----------------------------------------------------------------- profile */
+
+/** A grouped list of tappable rows (icon, two text lines, chevron), as on the profile page. */
+function ProfileRowsSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-3.5 px-4 py-3.5">
+          <Skeleton className="size-5 shrink-0 rounded-md" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-4 w-40" />
+            {i === 0 && <Skeleton className="h-3 w-56 max-w-full" />}
+          </div>
+          <Skeleton className="size-4 rounded-md" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Mirrors the "Profile" tab: title, account card, role banner, grouped link rows and the phone log-out button. */
+export function ProfileDetailsSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Skeleton className="h-8 w-28 md:h-9" />
+      <div className="flex items-center gap-4 rounded-[22px] border border-line p-5">
+        <Skeleton className="size-14 shrink-0 rounded-full" />
+        <div className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <Skeleton className="h-4 w-8" />
+      </div>
+      <div className="flex flex-col gap-2 rounded-2xl bg-surface px-4 py-3.5">
+        <Skeleton className="h-3 w-14 bg-white" />
+        <Skeleton className="h-4 w-64 max-w-full bg-white" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-24" />
+        <ProfileRowsSkeleton rows={3} />
+      </div>
+      <Skeleton className="h-[50px] w-full rounded-[14px] md:hidden" />
+    </div>
+  );
+}
+
+/** Whole profile page: account side navigation (desktop) beside the details content. */
+export function ProfileSkeleton() {
+  return (
+    <SkeletonRegion label="Loading your profile" className="container-page grid gap-8 py-6 md:grid-cols-[260px_1fr] md:py-10">
+      <div className="hidden self-start rounded-[22px] border border-line p-4 md:block">
+        <div className="mb-4 flex items-center gap-3 border-b border-line pb-4">
+          <Skeleton className="size-11 rounded-full" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          {[120, 104, 136, 96, 112, 100].map((w, i) => (
+            <div key={i} className="flex h-10 items-center px-3">
+              <Skeleton className="h-4" style={{ width: w }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <ProfileDetailsSkeleton />
+    </SkeletonRegion>
+  );
+}

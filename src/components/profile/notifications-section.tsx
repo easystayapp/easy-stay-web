@@ -4,7 +4,7 @@ import { BellOff, CalendarClock, Clock, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { ListRowsSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
 import { useListingActions } from "@/hooks/use-listing-actions";
 import { api, errorMessage } from "@/lib/client/api";
@@ -37,7 +37,7 @@ export function NotificationsSection({ embedded = false }: { embedded?: boolean 
   const actions = useListingActions(load);
 
   if (error) return <div className={embedded ? "" : "container-page py-10"}><ErrorNote>{error}</ErrorNote></div>;
-  if (!items) return <PageSpinner />;
+  if (!items) return <ListRowsSkeleton rows={3} label="Loading notifications" />;
 
   const listing = (id: string) => listings.find((l) => l.id === id);
   const groups = (["Today", "Yesterday", "Earlier"] as const)

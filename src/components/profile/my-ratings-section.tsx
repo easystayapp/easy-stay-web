@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, ErrorNote, StarIcon } from "@/components/ui/primitives";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
 import { RATING_RELATION_LABEL } from "@/lib/domain/catalog";
 import type { MyRatingListItem } from "@/types/api";
@@ -27,7 +27,7 @@ export function MyRatingsSection() {
       {error ? (
         <ErrorNote>{error}</ErrorNote>
       ) : !items ? (
-        <PageSpinner />
+        <CardListSkeleton rows={3} label="Loading your ratings" />
       ) : !items.length ? (
         <EmptyState
           icon={<Star className="size-7" />}
