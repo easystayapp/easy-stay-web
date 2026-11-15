@@ -13,10 +13,13 @@ export function RequireAuth({
   children,
   title = "Log in to continue",
   subtitle = "Use Google or your mobile number. Browsing never needs an account.",
+  fallback,
 }: {
   children: (me: Me) => ReactNode;
   title?: string;
   subtitle?: string;
+  /** Shown while the login state loads. Pass the page's skeleton so there's no spinner-then-skeleton flash. */
+  fallback?: ReactNode;
 }) {
   const { ready, user, me, requireLogin } = useAuth();
   const asked = useRef(false);
@@ -28,7 +31,7 @@ export function RequireAuth({
     }
   }, [ready, user, requireLogin, title, subtitle]);
 
-  if (!ready || (user && !me)) return <PageSpinner />;
+  if (!ready || (user && !me)) return <>{fallback ?? <PageSpinner />}</>;
   if (!user || !me) {
     return (
       <div className="container-page py-12">
@@ -45,9 +48,9 @@ export function RequireAuth({
 }
 
 /** Signed in AND owner tools on. */
-export function RequireOwner({ children }: { children: (me: Me) => ReactNode }) {
+export function RequireOwner({ children, fallback }: { children: (me: Me) => ReactNode; fallback?: ReactNode }) {
   return (
-    <RequireAuth title="Log in to manage your listings" subtitle="Owner tools live on your regular EasyStay account.">
+    <RequireAuth title="Log in to manage your listings" subtitle="Owner tools live on your regular EasyStay account." fallback={fallback}>
       {(me) =>
         me.ownerToolsOn ? (
           children(me)

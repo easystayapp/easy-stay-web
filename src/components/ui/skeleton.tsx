@@ -1,8 +1,8 @@
 import { cx } from "@/lib/client/cx";
 
 /** A pulsing placeholder block. Pulse is disabled for users who prefer reduced motion. */
-export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={cx("animate-pulse rounded-lg bg-line-3 motion-reduce:animate-none", className)} />;
+export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div aria-hidden style={style} className={cx("animate-pulse rounded-lg bg-line-3 motion-reduce:animate-none", className)} />;
 }
 
 /** Wraps a skeleton layout: announces one "loading" status instead of every block. */
@@ -194,6 +194,97 @@ export function ThreadSkeleton() {
       <div className="flex flex-col gap-3 py-2">
         {bubbles.map((c) => (
           <Skeleton key={c} className={`h-12 rounded-[16px] ${c}`} />
+        ))}
+      </div>
+    </SkeletonRegion>
+  );
+}
+
+/* ------------------------------------------------------------ my listings */
+
+/** Mirrors <MyListingsSection>: header + button, four stat tiles, filter pills, then cards (phone) or a table (desktop). */
+export function MyListingsSkeleton({ embedded = false }: { embedded?: boolean }) {
+  return (
+    <SkeletonRegion label="Loading your listings" className={embedded ? "flex flex-col gap-6" : "container-page flex flex-col gap-6 py-6 md:py-10"}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-2.5">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-8 w-44 md:h-9" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </div>
+        <Skeleton className="h-[54px] w-40 rounded-[14px] max-sm:w-full" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="rounded-[20px] border border-line p-4">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-3 h-7 w-12" />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex w-fit max-w-full gap-1 overflow-hidden rounded-full bg-surface p-1">
+        {[72, 64, 68, 62, 62].map((w, i) => (
+          <Skeleton key={i} className="h-9 rounded-full bg-white" style={{ width: w }} />
+        ))}
+      </div>
+
+      {/* Phone cards */}
+      <ul className="flex flex-col gap-3.5 md:hidden">
+        {Array.from({ length: 2 }, (_, i) => (
+          <li key={i} className="flex flex-col gap-3 rounded-[20px] border border-line p-3.5">
+            <div className="flex gap-3">
+              <Skeleton className="size-[84px] shrink-0 rounded-[14px]" />
+              <div className="flex flex-1 flex-col gap-2 pt-0.5">
+                <div className="flex justify-between gap-2">
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 flex-1 rounded-xl" />
+              <Skeleton className="h-10 flex-1 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Skeleton className="h-10 rounded-[10px]" />
+              <Skeleton className="h-10 rounded-[10px]" />
+              <Skeleton className="h-10 rounded-[10px]" />
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-hidden rounded-[20px] border border-line md:block">
+        <div className="flex h-11 items-center gap-6 bg-surface-2 px-4">
+          {[160, 56, 48, 40, 48, 64, 90].map((w, i) => (
+            <Skeleton key={i} className="h-3" style={{ width: w }} />
+          ))}
+        </div>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="flex items-center gap-6 border-t border-line px-4 py-3">
+            <div className="flex w-[240px] items-center gap-3">
+              <Skeleton className="size-12 shrink-0 rounded-xl" />
+              <div className="flex flex-1 flex-col gap-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-4 w-14" />
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-10" />
+            <Skeleton className="h-4 w-16" />
+            <div className="ml-auto flex gap-2">
+              <Skeleton className="h-10 w-16 rounded-[10px]" />
+              <Skeleton className="h-10 w-16 rounded-[10px]" />
+              <Skeleton className="h-10 w-24 rounded-[10px]" />
+            </div>
+          </div>
         ))}
       </div>
     </SkeletonRegion>

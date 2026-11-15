@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BedDouble, Building2, CalendarClock, CircleHelp, House, MapPin, PhoneCall, Plus, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, BedDouble, Building2, CalendarClock, ChartColumn, CircleHelp, House, MapPin, PhoneCall, Plus, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,15 @@ import { popularLocalities, type CategoryIcon, type HighlightIcon } from "@/lib/
 import type { FeaturedStay, PropertyCard as Card, TopOwner } from "@/types/api";
 import { emptyFilters, serializeFilters, type SearchFilters } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
+
+/** "For property owners" section: what listing gets you, in plain terms. */
+const OWNER_BENEFITS = [
+  { icon: Wallet, title: "Free for 15 days", body: "List at no cost and repost in one tap when it expires." },
+  { icon: PhoneCall, title: "Direct calls & WhatsApp", body: "Seekers contact you themselves. No brokerage, no middlemen." },
+  { icon: BadgeCheck, title: "Stand out as verified", body: "Add your ID and safety certificates to earn a Verified owner badge and safety score." },
+  { icon: ChartColumn, title: "See who's looking", body: "Track views, enquiries and visit requests for every listing." },
+] as const;
+const OWNER_STEPS = ["Sign in", "Add your number", "Post your place"] as const;
 
 /* Hero search bar: one bar of icon-led segments (stacked boxes on phones). */
 const SEGMENT =
@@ -417,6 +426,48 @@ export function HomeView() {
             </li>
           ))}
         </ol>
+      </Reveal>
+
+      <Reveal aria-label="For property owners" className="container-page pt-14 md:pt-16">
+        <div className="grid gap-8 rounded-[28px] bg-blush p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-12 lg:p-10">
+          <div className="flex flex-col gap-5">
+            <span className="text-[11px] font-extrabold tracking-[0.14em] text-brand uppercase">For property owners</span>
+            <h2 className="text-[26px] leading-tight font-extrabold tracking-tight md:text-[32px]">
+              Own a PG, room or flat? Fill it faster.
+            </h2>
+            <p className="max-w-md text-[15px] leading-relaxed text-muted-2">
+              Reach people looking in your area right now, and talk to them directly. Listing takes about 2 minutes.
+            </p>
+            <ol className="flex flex-wrap gap-2" aria-label="How to list">
+              {OWNER_STEPS.map((step, i) => (
+                <li key={step} className="flex items-center gap-2 rounded-full bg-white py-1.5 pr-3.5 pl-1.5 text-[13px] font-bold shadow-[var(--shadow-card)]">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-brand text-xs font-extrabold text-white">{i + 1}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+              <ButtonLink href={me?.ownerToolsOn ? "/my-listings/new" : "/owner"} size="lg">
+                List your property
+              </ButtonLink>
+              <Link href="/help" className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-dark hover:text-brand">
+                How listing works
+                <ArrowRight aria-hidden className="size-4" />
+              </Link>
+            </div>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {OWNER_BENEFITS.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex flex-col gap-2.5 rounded-[20px] bg-white p-5 shadow-[var(--shadow-card)]">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-blush text-brand">
+                  <Icon aria-hidden className="size-5" />
+                </span>
+                <span className="text-[15px] font-extrabold">{title}</span>
+                <span className="text-[13px] leading-relaxed text-muted-foreground">{body}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Reveal>
 
       {home.faqs.length > 0 && (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useListingActions } from "@/hooks/use-listing-actions";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { ListRowsSkeleton } from "@/components/ui/skeleton";
+import { MyListingsSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorNote, StatusBadge } from "@/components/ui/primitives";
 import { PropertyImage } from "@/components/ui/property-image";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,7 +40,7 @@ export function MyListingsSection({ me, embedded = false }: { me: Me; embedded?:
   const actions = useListingActions(load);
 
   if (error) return <div className={embedded ? "" : "container-page py-10"}><ErrorNote>{error}</ErrorNote></div>;
-  if (!data) return <ListRowsSkeleton label="Loading your listings" />;
+  if (!data) return <MyListingsSkeleton embedded={embedded} />;
 
   const items = filter === "all" ? data.items : data.items.filter((l) => l.status === filter);
   const filters: { key: FilterKey; label: string }[] = [

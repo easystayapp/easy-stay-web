@@ -215,7 +215,7 @@ export function Segmented<T extends string>({
         <ToggleGroupItem
           key={o.value}
           value={o.value}
-          className="h-10 flex-1 rounded-[10px]! px-2 text-[13px] font-semibold text-muted-foreground hover:bg-transparent hover:text-ink data-[state=on]:bg-white data-[state=on]:font-bold data-[state=on]:text-brand data-[state=on]:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+          className="h-10 min-w-0 flex-1 rounded-[10px]! px-1 text-xs font-semibold sm:px-2 sm:text-[13px] text-muted-foreground hover:bg-transparent hover:text-ink data-[state=on]:bg-white data-[state=on]:font-bold data-[state=on]:text-brand data-[state=on]:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
         >
           {o.label}
         </ToggleGroupItem>
