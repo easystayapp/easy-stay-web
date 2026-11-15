@@ -5,6 +5,16 @@
  * only to these functions — so the backend can change without UI changes.
  */
 import type {
+  CaseRequest,
+  DocUploadTicket,
+  EnquiryAction,
+  InboxResponse,
+  InboxSide,
+  MessagesResponse,
+  MyCase,
+  MyVerification,
+  ThreadResponse,
+  VerificationRequest,
   ContactInfo,
   EditableProperty,
   Me,
@@ -102,6 +112,39 @@ export const api = {
   save: (id: string) => request<{ ok: true }>("PUT", `/api/me/saved/${enc(id)}`),
   unsave: (id: string) => request<{ ok: true }>("DELETE", `/api/me/saved/${enc(id)}`),
   myRatings: () => request<{ items: MyRatingListItem[] }>("GET", "/api/me/ratings"),
+
+  /* enquiries, visits & chat */
+  sendEnquiry: (body: { propertyId: string; message?: string; visitAt?: number | null }) =>
+    request<{ id: string; created: boolean }>("POST", "/api/enquiries", body),
+  enquiries: (as: InboxSide, after?: number) =>
+    request<InboxResponse>("GET", `/api/enquiries?as=${as}${after ? `&after=${after}` : ""}`),
+  thread: (id: string) => request<ThreadResponse>("GET", `/api/enquiries/${enc(id)}`),
+  messages: (id: string, before?: number) =>
+    request<MessagesResponse>("GET", `/api/enquiries/${enc(id)}/messages${before ? `?before=${before}` : ""}`),
+  postMessage: (id: string, text: string) => request<{ ok: true }>("POST", `/api/enquiries/${enc(id)}/messages`, { text }),
+  enquiryAction: (id: string, body: { action: EnquiryAction; visitAt?: number; note?: string }) =>
+    request<unknown>("POST", `/api/enquiries/${enc(id)}`, body),
+
+  /* reports & grievances */
+  fileCase: (body: CaseRequest) => request<{ id: string; duplicate: boolean }>("POST", "/api/reports", body),
+  myCases: () => request<{ items: MyCase[] }>("GET", "/api/me/cases"),
+
+  /* owner verification (KYC, NOCs) */
+  myVerifications: () => request<MyVerification[]>("GET", "/api/me/verifications"),
+  submitVerification: (body: VerificationRequest) =>
+    request<{ id: string; status: "pending" }>("POST", "/api/me/verifications", body),
+  /** Uploads a private document; returns its storage key (never a public URL). */
+  uploadDocument: async (file: File): Promise<string> => {
+    const ticket = await request<DocUploadTicket>("POST", "/api/me/verifications/upload", { contentType: file.type, size: file.size });
+    if (ticket.mode === "direct") {
+      const res = await fetch(ticket.uploadUrl, { method: ticket.method, headers: ticket.headers, body: file }).catch(() => null);
+      if (!res?.ok) throw new ApiError(res?.status ?? 0, "upload_failed", "Upload failed. Check your connection and try again.", null);
+      return ticket.path;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    return (await request<{ path: string }>("POST", "/api/me/verifications/upload", form)).path;
+  },
 
   /* account */
   me: () => request<Me>("GET", "/api/me"),

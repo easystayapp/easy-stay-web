@@ -120,7 +120,7 @@ export const cityByLabel = (cities: City[], label: string) => cities.find((c) =>
 
 export const popularLocalities = (cities: City[], label: string) => cityByLabel(cities, label)?.popular ?? [];
 
-const NOUN: Record<PropertyType, string> = { pg: "PG", room: "room", flat: "flat" };
+const NOUN: Record<PropertyType, string> = { pg: "PG", room: "room", flat: "flat", hotel: "hotel room" };
 
 export function greetingFor(greetings: Partial<Record<PropertyType, string>>, type: PropertyType): string {
   return (greetings[type] ?? "").replaceAll("{noun}", NOUN[type]);

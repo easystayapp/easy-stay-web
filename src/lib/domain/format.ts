@@ -24,6 +24,20 @@ export function availabilityLabel(availableFrom: Date | null, now = new Date()):
   return `From ${formatDayMonth(availableFrom)}`;
 }
 
+/** "Updated today", "Updated yesterday", "Updated 4 days ago", "Updated 2 months ago" (IST days). */
+export function freshnessLabel(at: Date, now = new Date()): string {
+  const days = Math.max(0, Math.round((startOfDayIST(now).getTime() - startOfDayIST(at).getTime()) / 86_400_000));
+  if (days === 0) return "Updated today";
+  if (days === 1) return "Updated yesterday";
+  if (days < 30) return `Updated ${days} days ago`;
+  const months = Math.floor(days / 30);
+  return `Updated ${months} month${months > 1 ? "s" : ""} ago`;
+}
+
+/** Listings untouched this long get a muted label so seekers know to confirm. */
+export const STALE_DAYS = 10;
+export const isStale = (at: Date, now = new Date()) => now.getTime() - at.getTime() > STALE_DAYS * 86_400_000;
+
 /* -------------------------------------------------------------- phones */
 
 /** Accepts 10-digit Indian mobiles in common formats; returns E.164 or null. */
@@ -47,4 +61,12 @@ export function firstName(name: string): string {
 
 export function initial(name: string): string {
   return (name.trim()[0] || "E").toUpperCase();
+}
+
+/** "Sat, 16 Nov · 10:00 AM" in IST. */
+export function formatVisit(ms: number): string {
+  const d = new Date(ms);
+  const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+  const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).toUpperCase();
+  return `${day} · ${time}`;
 }

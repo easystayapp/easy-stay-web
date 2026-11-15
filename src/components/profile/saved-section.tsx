@@ -8,7 +8,7 @@ import { useSaved } from "@/hooks/use-saved";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
 import { PropertyImage } from "@/components/ui/property-image";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { PropertyGridSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
 import type { SavedItem } from "@/types/api";
 import { formatRupees } from "@/lib/domain/format";
@@ -26,7 +26,7 @@ function SavedList() {
   }, []);
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!items) return <PageSpinner />;
+  if (!items) return <PropertyGridSkeleton label="Loading saved properties" />;
   const visible = items.filter((i) => isSaved(i.property.id));
   if (!visible.length) {
     return (

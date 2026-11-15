@@ -9,7 +9,7 @@
  * Adding a backend = one more case here plus an implementation of
  * `Repositories` or `FileStorage`.
  */
-import { seedDemoData } from "../seed/demo";
+import { seedDemoData, seedDemoSafety } from "../seed/demo";
 import { createFirestoreRepositories } from "./firestore";
 import { createMemoryFileStorage, createMemoryRepositories, memoryStore } from "./memory";
 import { createR2FileStorage, r2Configured } from "./r2";
@@ -43,7 +43,7 @@ export async function getRepositories(): Promise<Repositories> {
   if (dataBackend() === "memory" && process.env.DEMO_SEED !== "0") {
     g.__easyStaySeeded ??= memoryStore().properties.size
       ? Promise.resolve()
-      : seedDemoData(g.__easyStayRepos).then(() => undefined);
+      : seedDemoData(g.__easyStayRepos).then((listings) => seedDemoSafety(g.__easyStayRepos!, listings));
     await g.__easyStaySeeded;
   }
   return g.__easyStayRepos;

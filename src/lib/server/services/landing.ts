@@ -10,7 +10,7 @@ import type { Property } from "@/lib/domain/types";
 import type { PropertyCard } from "@/types/api";
 import type { Repositories } from "../repositories";
 import { getCatalog } from "./content";
-import { toCard } from "./mappers";
+import { cardsWithSafety } from "./ops/verification";
 
 export interface AreaLink {
   name: string;
@@ -63,7 +63,7 @@ export async function cityLanding(repos: Repositories, citySlug: string): Promis
     area: null,
     areaSlug: null,
     stats: landingStats(list),
-    listings: sortProperties(list, "newest").slice(0, 24).map(toCard),
+    listings: await cardsWithSafety(repos, sortProperties(list, "newest").slice(0, 24)),
     areas: areasOf(list),
   };
 }
@@ -83,7 +83,7 @@ export async function areaLanding(repos: Repositories, citySlug: string, areaSlu
     area: name,
     areaSlug,
     stats: landingStats(here),
-    listings: rank(here).slice(0, 24).map(toCard),
+    listings: await cardsWithSafety(repos, rank(here).slice(0, 24)),
     areas: areas.filter((a) => a.slug !== areaSlug),
   };
 }

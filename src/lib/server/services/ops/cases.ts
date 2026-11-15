@@ -4,7 +4,7 @@ import { getAuth } from "firebase-admin/auth";
 import { DomainError } from "@/lib/domain/errors";
 import {
   CASE_KINDS, REPORT_REASONS, isOverdue, slaDeadlines,
-  type AuditEntry, type Case, type CaseKind, type ReportReason,
+  type AuditEntry, type Case, type CaseKind, type CaseTarget, type ReportReason,
 } from "@/lib/domain/ops";
 import type { AuthUser } from "../../auth";
 import { PATHS, dataBackend, type Repositories } from "../../repositories";
@@ -25,10 +25,15 @@ export async function fileCase(
   if (kind === "takedown") throw new DomainError("forbidden", "Takedown requests are created by admins.");
   const reason = body.reason as ReportReason;
   if (!REPORT_REASONS.includes(reason)) throw new DomainError("invalid_input", "Choose a reason.", { reason: "required" });
-  const targetType = body.targetType === "user" ? "user" : body.targetType === "message" ? "message" : "property";
-  const targetId = typeof body.targetId === "string" ? body.targetId : "";
+  const targetType: CaseTarget =
+    body.targetType === "user" ? "user" : body.targetType === "message" ? "message" : body.targetType === "platform" ? "platform" : "property";
+  // A grievance may be about EasyStay itself rather than one listing or person.
+  const targetId = targetType === "platform" ? "platform" : typeof body.targetId === "string" ? body.targetId.slice(0, 128) : "";
   if (!targetId) throw new DomainError("invalid_input", "Missing target.");
+  if (targetType === "platform" && kind !== "grievance") throw new DomainError("invalid_input", "Choose a listing to report.");
+  if (targetType === "property" && !(await repos.properties.get(targetId))) throw new DomainError("not_found", "Listing not found.");
   const details = typeof body.details === "string" ? body.details.trim().slice(0, 1000) : "";
+  if (kind === "grievance" && details.length < 10) throw new DomainError("invalid_input", "Describe the problem in a few words.", { details: "required" });
   const now = Date.now();
   const id = kind === "report" ? `${targetId}_${auth.uid}` : `g_${now}_${randomUUID().slice(0, 6)}`;
   const created = await store(repos).create(id, {
@@ -37,6 +42,25 @@ export async function fileCase(
     createdAt: now, updatedAt: now,
   });
   return { id, duplicate: !created };
+}
+
+/** The caller's own reports and grievances, newest first, with SLA status (grievance tracker). */
+export async function myCases(repos: Repositories, auth: AuthUser) {
+  const rows = await store(repos).query({ where: [["reporterId", "==", auth.uid]], orderBy: ["createdAt", "desc"], limit: 50 });
+  const now = Date.now();
+  const titles = new Map(
+    (await repos.properties.getMany([...new Set(rows.filter((c) => c.targetType === "property").map((c) => c.targetId))])).map((p) => [p.id, p.title]),
+  );
+  return {
+    items: rows
+      .filter((c) => c.kind !== "takedown")
+      .map((c) => ({
+        id: c.id, kind: c.kind, status: c.status, reason: c.reason, details: c.details,
+        targetType: c.targetType, targetId: c.targetId, targetTitle: titles.get(c.targetId) ?? null,
+        acknowledgeBy: c.acknowledgeBy, resolveBy: c.resolveBy, acknowledgedAt: c.acknowledgedAt,
+        resolvedAt: c.resolvedAt, resolution: c.resolution, createdAt: c.createdAt, overdue: isOverdue(c, now),
+      })),
+  };
 }
 
 export async function listCases(repos: Repositories, auth: AuthUser, opts: { status?: unknown; kind?: unknown; overdue?: unknown; after?: unknown }) {

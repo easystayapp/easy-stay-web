@@ -42,7 +42,7 @@ export function PhotoUploader({ photos, onChange, invalid }: { photos: Photo[]; 
   const tiles = photos.length + uploading;
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+      <div className="grid max-w-xl grid-cols-4 gap-2 sm:grid-cols-5">
         {photos.map((p, i) => (
           <div key={p.path} className="group relative aspect-square overflow-hidden rounded-xl bg-surface">
             <img src={p.url} alt={`Photo ${i + 1}`} className="size-full object-cover" />

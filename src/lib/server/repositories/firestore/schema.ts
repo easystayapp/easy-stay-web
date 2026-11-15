@@ -65,6 +65,8 @@ export const TYPE = codec<PropertyType>([
   ["pg", "PG_HOSTEL"],
   ["room", "ROOM"],
   ["flat", "FLAT"],
+  // Web-only for now: Android skips listings with a type it doesn't know.
+  ["hotel", "HOTEL"],
 ]);
 export const SIZE = codec<SharingOption>([
   ["1_sharing", "SHARING_1"],

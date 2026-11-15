@@ -23,6 +23,7 @@ export function MultiSelect<T extends string>({
   placeholder = "Any",
   label,
   searchable = false,
+  compact = false,
   className,
 }: {
   options: MultiSelectOption<T>[];
@@ -31,6 +32,8 @@ export function MultiSelect<T extends string>({
   placeholder?: string;
   label: string;
   searchable?: boolean;
+  /** Smaller trigger for dense sidebars. */
+  compact?: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -44,7 +47,8 @@ export function MultiSelect<T extends string>({
           type="button"
           aria-label={label}
           className={cn(
-            "flex min-h-[50px] w-full items-center gap-2 rounded-[14px] border-[1.5px] border-input bg-white py-2 pr-3 pl-3 text-left text-sm font-semibold outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 aria-expanded:border-ring",
+            "flex w-full items-center gap-2 border-[1.5px] border-input bg-white text-left font-semibold outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 aria-expanded:border-ring",
+            compact ? "min-h-10 rounded-xl py-1.5 pr-2.5 pl-2.5 text-[13px]" : "min-h-[50px] rounded-[14px] py-2 pr-3 pl-3 text-sm",
             className,
           )}
         >

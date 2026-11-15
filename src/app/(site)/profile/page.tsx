@@ -1,9 +1,9 @@
 "use client";
 
-import { Bell, ChevronLeft, ChevronRight, Heart, KeyRound, LayoutGrid, LifeBuoy, Settings, Star, type LucideIcon } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Flag, Heart, KeyRound, LayoutGrid, LifeBuoy, MessagesSquare, Settings, ShieldCheck, Star, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/auth/guards";
 import { MyListingsSection } from "@/components/profile/my-listings-section";
 import { MyRatingsSection } from "@/components/profile/my-ratings-section";
@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Avatar, ErrorNote } from "@/components/ui/primitives";
+import { ProfileSkeleton } from "@/components/ui/profile-skeleton";
+import { storeOwnerHint } from "@/lib/client/prefs";
 import { api, errorMessage } from "@/lib/client/api";
 import type { Me } from "@/types/api";
 import { formatPhone } from "@/lib/domain/format";
@@ -117,6 +119,8 @@ function PersonalDetails({ me }: { me: Me }) {
           <span className="eyebrow">Owner settings</span>
           <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
             <Row href={tabHref("listings")} icon={LayoutGrid} label="My listings" />
+            <Row href="/inbox?as=owner" icon={MessagesSquare} label="Enquiries & visits" />
+            <Row href="/owner/verification" icon={ShieldCheck} label="Verification & safety" hint="KYC and fire / structural / electrical NOCs" />
             <Row href={tabHref("owner-settings")} icon={Settings} label="Contact & notification settings" hint={`Listing number ${formatPhone(me.owner?.contactPhone)}`} />
             <Row href={tabHref("notifications")} icon={Bell} label="Expiry reminders" />
           </div>
@@ -126,8 +130,10 @@ function PersonalDetails({ me }: { me: Me }) {
       <div className="flex flex-col gap-2">
         {me.ownerToolsOn && <span className="eyebrow">Finding a place</span>}
         <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line">
+          <Row href="/inbox" icon={MessagesSquare} label="Messages & visits" />
           <Row href={tabHref("saved")} icon={Heart} label="Saved properties" badge={me.savedCount} />
           <Row href={tabHref("ratings")} icon={Star} label="My ratings" />
+          <Row href="/profile/reports" icon={Flag} label="Reports & grievances" hint="Track what you've reported" />
           <Row href="/help" icon={LifeBuoy} label="Help & support" />
         </div>
       </div>
@@ -147,18 +153,25 @@ function PersonalDetails({ me }: { me: Me }) {
   );
 }
 
+/** Remembers whether this account is an owner, so the next load's skeleton draws the right layout. */
+function OwnerHint({ on }: { on: boolean }) {
+  useEffect(() => storeOwnerHint(on), [on]);
+  return null;
+}
+
 /** 10 · Profile (owner tools off) · 23 · Profile (owner tools on). Every section opens in place. */
 function ProfileTabs() {
   const params = useSearchParams();
   const requested = params.get("tab") as ProfileTab | null;
   return (
-    <RequireAuth title="Log in to see your profile">
+    <RequireAuth title="Log in to see your profile" fallback={<ProfileSkeleton tab={requested} />}>
       {(me) => {
         const ownerOnly: ProfileTab[] = ["owner-settings", "listings", "notifications"];
         const tab: ProfileTab =
           requested && PROFILE_TABS.includes(requested) && (me.ownerToolsOn || !ownerOnly.includes(requested)) ? requested : "details";
         return (
           <ProfileShell me={me} active={tab}>
+            <OwnerHint on={me.ownerToolsOn} />
             {tab !== "details" && (
               <Link href={tabHref("details")} scroll={false} className="mb-4 inline-flex items-center gap-1 text-sm font-bold md:hidden">
                 <ChevronLeft aria-hidden className="size-4" /> Profile
@@ -179,7 +192,7 @@ function ProfileTabs() {
 
 export default function ProfilePage() {
   return (
-    <Suspense>
+    <Suspense fallback={<ProfileSkeleton />}>
       <ProfileTabs />
     </Suspense>
   );

@@ -8,7 +8,7 @@ export const EMPTY_CATALOG: Catalog = {
   defaultCity: "",
   home: { budgets: [], categories: [], steps: [], highlights: [], faqs: [] },
   welcome: { roles: [] },
-  greetings: { pg: "", room: "", flat: "" },
+  greetings: { pg: "", room: "", flat: "", hotel: "" },
 };
 
 export const CatalogContext = createContext<Catalog>(EMPTY_CATALOG);

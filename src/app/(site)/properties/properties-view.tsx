@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, SearchX, SlidersHorizontal, X } from "lucide-react";
+import { ChevronLeft, SearchX, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
-import { PageSpinner } from "@/components/ui/page-spinner";
+import { PropertyGridSkeleton, ResultsPageSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
+import { useToast } from "@/hooks/use-toast";
 import { cx } from "@/lib/client/cx";
 import type { SearchResponse } from "@/types/api";
 import {
@@ -64,21 +65,41 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
     };
   }, [key, city, result?.key]);
 
+  const toast = useToast();
+  const [locating, setLocating] = useState(false);
   const apply = (f: SearchFilters) => router.replace(`/properties?${serializeFilters(f)}`, { scroll: false });
+
+  /** "Nearest first" needs the seeker's position; ask once, then sort on the server. */
+  const sortBy = (sort: SearchSort) => {
+    if (sort !== "distance") return apply({ ...filters, sort, page: 1 });
+    if (!navigator.geolocation) return toast("Location isn't available on this device.", "error");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        apply({ ...filters, sort, userLat: coords.latitude, userLng: coords.longitude, page: 1 });
+      },
+      () => {
+        setLocating(false);
+        toast("Allow location access to sort by distance.", "error");
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  };
   const chips = activeChips(filters, apply);
   const count = activeFilterCount(filters);
 
   return (
-    <div className="container-page grid gap-8 py-6 md:py-8 lg:grid-cols-[280px_1fr]">
+    <div className="container-page grid gap-8 py-6 md:py-8 lg:grid-cols-[264px_1fr]">
       {/* Web sidebar */}
-      <aside className="hidden self-start rounded-[20px] border border-line lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 pt-5 pb-3">
-          <span className="text-lg font-extrabold">Filters</span>
-          <button type="button" className="text-sm font-bold text-brand hover:text-brand-dark" onClick={() => apply(resetFilters(filters))}>
+      <aside className="hidden self-start rounded-[20px] border border-line lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-4 pt-4 pb-2.5">
+          <span className="text-base font-extrabold">Filters</span>
+          <button type="button" className="text-[13px] font-bold text-brand hover:text-brand-dark" onClick={() => apply(resetFilters(filters))}>
             Reset
           </button>
         </div>
-        <div className="px-5 pt-4 pb-5">
+        <div className="px-4 pt-3 pb-4">
           <FiltersPanel filters={filters} onChange={apply} variant="list" />
         </div>
       </aside>
@@ -109,40 +130,46 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
           <button
             type="button"
             onClick={() => setSheet(filters)}
-            className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-brand px-4 text-[13px] font-bold text-white lg:hidden"
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand px-3.5 text-xs font-bold text-white lg:hidden"
           >
-            <SlidersHorizontal aria-hidden className="size-4" />
+            <SlidersHorizontal aria-hidden className="size-3.5" />
             Filters{count ? ` · ${count}` : ""}
           </button>
+          {!filters.womenFirst && (
+            <button
+              type="button"
+              onClick={() => apply({ ...filters, womenFirst: true, page: 1 })}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-tag-line bg-white px-3 text-xs font-bold text-tag-dark hover:bg-tag-bg lg:hidden"
+            >
+              <Sparkles aria-hidden className="size-3.5" />
+              Women-First
+            </button>
+          )}
           {chips.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={c.remove}
               aria-label={`Remove filter ${c.label}`}
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-tag-bg px-3.5 text-[13px] font-semibold text-tag-dark hover:bg-tag-bg-hover"
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-tag-bg px-3 text-xs font-semibold text-tag-dark hover:bg-tag-bg-hover"
             >
               {c.label}
-              <X aria-hidden className="size-3.5" />
+              <X aria-hidden className="size-3" />
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[22px] font-extrabold tracking-tight md:text-[28px]">
-            {searchHeading(filters, areas)}
-            {data && (
-              <span className="ml-2 text-base font-semibold text-muted-foreground">
-                <span className="sr-only">, </span>
-                {data.total}
-                <span className="sr-only"> {data.total === 1 ? "place" : "places"}</span>
-              </span>
-            )}
-          </h1>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="text-[22px] leading-tight font-extrabold tracking-tight md:text-[28px]">{searchHeading(filters, areas)}</h1>
+            <p aria-live="polite" className="min-h-5 text-sm font-semibold text-muted-foreground">
+              {data ? `${data.total} ${data.total === 1 ? "place" : "places"} found` : ""}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="sort" className="text-muted-foreground">Sort</Label>
-            <Select value={filters.sort} onValueChange={(v) => apply({ ...filters, sort: v as SearchSort, page: 1 })}>
-              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]">
+            <Select value={filters.sort} onValueChange={(v) => sortBy(v as SearchSort)} disabled={locating}>
+              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]" aria-busy={locating}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="end">
@@ -159,7 +186,7 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
         {error ? (
           <ErrorNote>{error}</ErrorNote>
         ) : !data ? (
-          <PageSpinner label="Loading properties" />
+          <PropertyGridSkeleton />
         ) : data.items.length === 0 ? (
           <EmptyState
             icon={<SearchX className="size-7" />}
@@ -242,7 +269,7 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
 
 export function PropertiesView({ initial }: { initial: InitialResults | null }) {
   return (
-    <Suspense fallback={<PageSpinner />}>
+    <Suspense fallback={<ResultsPageSkeleton />}>
       <ResultsView initial={initial} />
     </Suspense>
   );
