@@ -16,6 +16,7 @@ import type {
   ContactChannel,
   ContactEvent,
   DailyViews,
+  GeoPoint,
   ID,
   Property,
   Rating,
@@ -50,6 +51,12 @@ export interface PropertyRepository {
    * paginate in memory, so returning a superset is always safe.
    */
   findCandidates(filters: SearchFilters, limit: number): Promise<Property[]>;
+  /**
+   * Live listings whose map pin is within `radiusKm` of `center`, nearest first. Unlike
+   * `findCandidates` this is exact on distance, and it must answer from a spatial index
+   * rather than scanning every listing, so it stays fast and complete as listings grow.
+   */
+  findNear(center: GeoPoint, radiusKm: number, limit: number): Promise<Property[]>;
   /** Atomic replace of the rating aggregate. */
   setRatingSummary(id: ID, summary: RatingSummary): Promise<void>;
 }

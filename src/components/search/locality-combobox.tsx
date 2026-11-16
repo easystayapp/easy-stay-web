@@ -1,10 +1,11 @@
 "use client";
 
-import { BedDouble, Building2, Hotel, House, MapPin, TrendingUp } from "lucide-react";
+import { BedDouble, Building2, Hotel, House, LocateFixed, MapPin, TrendingUp } from "lucide-react";
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { useCatalog } from "@/hooks/use-catalog";
 import { api } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
+import { parseQuery } from "@/lib/domain/query";
 import { normalizeText, TYPE_PLURAL } from "@/lib/domain/search";
 import type { PropertyType } from "@/lib/domain/types";
 
@@ -36,7 +37,12 @@ interface ListingOption {
   imageUrl: string | null;
 }
 
-type Option = AreaOption | TypeOption | ListingOption;
+/** "Near me": search by the device's location instead of by name. */
+interface NearOption {
+  kind: "near";
+}
+
+type Option = AreaOption | TypeOption | ListingOption | NearOption;
 
 /** What the user picked: the search text and, for a shortcut, a property type. */
 export interface LocalitySelection {
@@ -98,6 +104,9 @@ function optionsFor(localities: string[], popular: string[], query: string, shor
   return top ? [...areas, ...shortcuts.map<TypeOption>((type) => ({ kind: "type", area: top.area, type }))] : areas;
 }
 
+/** Typing "n", "ne", "near", "nearby"… : offer the Near me row. */
+const tokenStart = (q: string) => ["near", "nearby", "nearme"].some((w) => w.startsWith(q.trim().toLowerCase().replace(/\s+/g, "")));
+
 /** Bolds the part of `text` that starts with the typed query. */
 function Highlight({ text, query }: { text: string; query: string }) {
   const q = query.trim();
@@ -131,6 +140,7 @@ export function LocalityCombobox({
   listClassName,
   inputSlot,
   onListing,
+  onNearMe,
 }: {
   id: string;
   city: string;
@@ -150,14 +160,21 @@ export function LocalityCombobox({
   inputSlot?: string;
   /** Also suggest listings by name; called with the listing's URL when one is picked. */
   onListing?: (href: string) => void;
+  /** Adds a "Near me" row that searches around the device's location. */
+  onNearMe?: () => void;
 }) {
   const { cities } = useCatalog();
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
 
-  const current = cities.find((c) => c.label === city);
+  // The text may name another city or part of one ("sector 4 noida"): suggest areas from there.
+  const parsed = useMemo(() => parseQuery(value, cities), [value, cities]);
+  const where = parsed.city ?? city;
+  const suffix = parsed.city && parsed.mention ? ` ${parsed.mention}` : "";
+  const current = cities.find((c) => c.label === where);
   const query = value.trim();
+  const areaQuery = parsed.city ? parsed.text : value;
 
   // Listings by name come from the server (debounced); kept per query so stale results never show.
   const listingsOn = !!onListing;
@@ -188,25 +205,33 @@ export function LocalityCombobox({
   );
 
   const options = useMemo<Option[]>(() => {
-    const base = optionsFor(current?.localities ?? [], current?.popular ?? [], value, typeShortcuts ?? null);
-    if (!listings.length) return base;
+    const base = optionsFor(current?.localities ?? [], current?.popular ?? [], areaQuery, typeShortcuts ?? null);
+    // "Near me" first, before typing or while typing "near…".
+    const near: Option[] = onNearMe && (!query || tokenStart(query)) ? [{ kind: "near" }] : [];
+    if (!listings.length) return [...near, ...base];
     // Areas, then matching listings, then type shortcuts.
     const areas = base.filter((o) => o.kind === "area");
-    return [...areas, ...listings, ...base.filter((o) => o.kind !== "area")];
-  }, [current, value, typeShortcuts, listings]);
+    return [...near, ...areas, ...listings, ...base.filter((o) => o.kind !== "area")];
+  }, [current, areaQuery, query, typeShortcuts, listings, onNearMe]);
   const showList = open && options.length > 0;
   const optionId = (i: number) => `${listId}-opt-${i}`;
 
   const pick = (o: Option) => {
     setOpen(false);
     setActive(-1);
+    if (o.kind === "near") {
+      onNearMe?.();
+      return;
+    }
     if (o.kind === "listing") {
       onChange(o.label);
       onListing?.(o.href);
       return;
     }
-    onChange(o.area);
-    onSelect?.({ q: o.area, type: o.kind === "type" ? o.type : null });
+    // Keep the city/area the user typed ("… noida") so the search stays there.
+    const text = `${o.area}${suffix}`.trim();
+    onChange(text);
+    onSelect?.({ q: text, type: o.kind === "type" ? o.type : null });
   };
 
   return (
@@ -254,7 +279,7 @@ export function LocalityCombobox({
         <ul
           id={listId}
           role="listbox"
-          aria-label={`Areas in ${city}`}
+          aria-label={`Areas in ${where}`}
           // Keep focus in the input while clicking an option.
           onMouseDown={(e) => e.preventDefault()}
           className={cn(
@@ -263,22 +288,22 @@ export function LocalityCombobox({
           )}
         >
           {options.map((o, i) => {
-            const Icon = o.kind === "type" ? TYPE_ICON[o.type] : o.kind === "listing" ? Building2 : o.popular ? TrendingUp : MapPin;
+            const Icon = o.kind === "near" ? LocateFixed : o.kind === "type" ? TYPE_ICON[o.type] : o.kind === "listing" ? Building2 : o.popular ? TrendingUp : MapPin;
             const prev = options[i - 1];
             const empty = !value.trim();
             // Section headings before typing; dividers between groups after.
             const heading =
-              empty && !prev && o.kind === "area"
-                ? `Popular in ${city}`
+              empty && prev?.kind !== "area" && o.kind === "area"
+                ? `Popular in ${where}`
                 : empty && o.kind === "type" && prev?.kind !== "type"
                   ? "Browse by type"
                   : o.kind === "listing" && prev?.kind !== "listing"
                     ? "Properties"
                     : null;
             const divider = !empty && o.kind === "type" && prev?.kind !== "type";
-            const where = o.kind === "type" ? o.area || city : null;
+            const typeWhere = o.kind === "type" ? o.area || where : null;
             return (
-              <Fragment key={o.kind === "type" ? `type-${o.type}` : o.kind === "listing" ? o.href : o.area}>
+              <Fragment key={o.kind === "near" ? "near" : o.kind === "type" ? `type-${o.type}` : o.kind === "listing" ? o.href : o.area}>
                 {heading && (
                   <li
                     role="presentation"
@@ -307,7 +332,12 @@ export function LocalityCombobox({
                       <Icon aria-hidden className="size-4" />
                     </span>
                   )}
-                  {o.kind === "listing" ? (
+                  {o.kind === "near" ? (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold text-brand-dark">Near me</span>
+                      <span className="truncate text-xs text-muted-foreground">Places closest to your current location</span>
+                    </span>
+                  ) : o.kind === "listing" ? (
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate font-semibold">
                         <Highlight text={o.label} query={value} />
@@ -317,16 +347,16 @@ export function LocalityCombobox({
                   ) : o.kind === "type" ? (
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate font-semibold">
-                        {TYPE_NOUN[o.type]} in <b className="font-extrabold">{where}</b>
+                        {TYPE_NOUN[o.type]} in <b className="font-extrabold">{typeWhere}</b>
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">{o.area ? `Property type · ${city}` : "All areas"}</span>
+                      <span className="truncate text-xs text-muted-foreground">{o.area ? `Property type · ${where}` : "All areas"}</span>
                     </span>
                   ) : (
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate font-semibold">
                         <Highlight text={o.area} query={value} />
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${city}${o.popular ? " · Popular" : ""}`}</span>
+                      <span className="truncate text-xs text-muted-foreground">{o.detail ?? `${where}${o.popular ? " · Popular" : ""}`}</span>
                     </span>
                   )}
                 </li>

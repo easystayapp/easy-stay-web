@@ -13,11 +13,13 @@
  * Web-only additions the Android app ignores:
  *   listingDrafts/{id}  unpublished listings (Android has no draft state and would show them)
  *   propertyViews/{…}   one-view-per-person-per-day dedupe
- *   properties: createdAt, updatedAt, availabilityConfirmedAt
+ *   properties: createdAt, updatedAt, availabilityConfirmedAt, geohash (9-char geohash of latitude/longitude,
+ *               the geo-fence index key; `npm run backfill:geohash` adds it to older listings)
  *   users: createdAt, updatedAt, savedAt{propertyId: ms}, ownerSettingsOff (owner tools turned off)
  *   users.ownerSettings: greeting, newRating, enabledAt
  */
 import type { City } from "@/lib/domain/content";
+import { geohashEncode } from "@/lib/domain/geohash";
 import { emptySummary } from "@/lib/domain/rating";
 import { formatPhone, normalizeIndianMobile } from "@/lib/domain/format";
 import type {
@@ -228,6 +230,8 @@ export function propertyOut(p: Omit<Property, "id">, cities: CityIndex): Doc {
     landmark: "",
     latitude: p.location.geo?.lat ?? null,
     longitude: p.location.geo?.lng ?? null,
+    // Geo-fence index key: lets "within N km" be answered by a range query (see geohash.ts). Android ignores it.
+    geohash: p.location.geo ? geohashEncode(p.location.geo.lat, p.location.geo.lng) : null,
     gender: GENDER.out(p.availableFor),
     photoUrls: p.photos.map((x) => x.url),
     deposit: p.deposit,

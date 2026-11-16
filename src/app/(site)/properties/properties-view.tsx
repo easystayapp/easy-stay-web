@@ -1,12 +1,14 @@
 "use client";
 
-import { ChevronLeft, SearchX, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { ChevronLeft, LocateFixed, SearchX, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PropertyCard } from "@/components/property/property-card";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useCity } from "@/hooks/use-city";
+import { useNearMe } from "@/hooks/use-near-me";
+import { parseQuery } from "@/lib/domain/query";
 import { activeChips, FiltersPanel, resetFilters } from "@/components/search/filters-panel";
 import { ListingSearch } from "@/components/search/listing-search";
 import { Button } from "@/components/ui/button";
@@ -15,11 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, ErrorNote } from "@/components/ui/primitives";
 import { PropertyGridSkeleton, ResultsPageSkeleton } from "@/components/ui/skeleton";
 import { api, errorMessage } from "@/lib/client/api";
-import { useToast } from "@/hooks/use-toast";
 import { cx } from "@/lib/client/cx";
 import type { SearchResponse } from "@/types/api";
 import {
   activeFilterCount,
+  DEFAULT_RADIUS_KM,
+  isNearby,
+  NEARBY_RADII,
   parseFilters,
   searchHeading,
   serializeFilters,
@@ -39,11 +43,10 @@ export interface InitialResults {
 function ResultsView({ initial }: { initial: InitialResults | null }) {
   const params = useSearchParams();
   const router = useRouter();
-  const { city } = useCity();
+  const { city, setCity } = useCity();
   const { cities } = useCatalog();
   const filters = parseFilters(params, city);
-  const cityInfo = cities.find((c) => c.label === filters.city);
-  const areas = [...(cityInfo?.localities ?? []), ...(cityInfo?.popular ?? [])];
+  const nearby = isNearby(filters);
   const key = serializeFilters(filters).toString();
 
   // Results are stored with the search they belong to; a different search shows the loader.
@@ -65,27 +68,36 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
     };
   }, [key, city, result?.key]);
 
-  const toast = useToast();
-  const [locating, setLocating] = useState(false);
+  const nearMe = useNearMe();
   const apply = (f: SearchFilters) => router.replace(`/properties?${serializeFilters(f)}`, { scroll: false });
 
-  /** "Nearest first" needs the seeker's position; ask once, then sort on the server. */
-  const sortBy = (sort: SearchSort) => {
+  // The text may name another city or part of one ("sector 43 noida" while browsing Hyderabad).
+  // The server's answer wins; until it arrives the same parsing gives the heading straight away.
+  const local = parseQuery(filters.q, cities);
+  const resolved = nearby ? null : (data?.resolved ?? (local.city ? { city: local.city, q: local.text, area: local.area?.name ?? null } : null));
+  const resolvedCity = resolved?.city;
+  useEffect(() => {
+    if (resolvedCity && resolvedCity !== city) setCity(resolvedCity); // follow it, so the rest of the site does too
+  }, [resolvedCity, city, setCity]);
+
+  // Headings and area hints follow the city that was actually searched.
+  const searched = resolved ? { ...filters, city: resolved.city, q: resolved.q } : filters;
+  const cityInfo = cities.find((c) => c.label === searched.city);
+  const areas = [...(cityInfo?.localities ?? []), ...(cityInfo?.popular ?? [])];
+  const heading = nearby ? "Places near you" : searchHeading(searched, areas, resolved?.area ?? null);
+
+  /** "Nearest first" and "Near me" need the position: ask once, then search on the server. */
+  const sortBy = async (sort: SearchSort) => {
     if (sort !== "distance") return apply({ ...filters, sort, page: 1 });
-    if (!navigator.geolocation) return toast("Location isn't available on this device.", "error");
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocating(false);
-        apply({ ...filters, sort, userLat: coords.latitude, userLng: coords.longitude, page: 1 });
-      },
-      () => {
-        setLocating(false);
-        toast("Allow location access to sort by distance.", "error");
-      },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
-    );
+    const pos = await nearMe.locate();
+    if (pos) apply({ ...filters, sort, userLat: pos.lat, userLng: pos.lng, page: 1 });
   };
+  /** Everything within a few km of the device, in any city, nearest first. */
+  const searchNearMe = async () => {
+    const pos = await nearMe.locate();
+    if (pos) apply({ ...filters, q: "", userLat: pos.lat, userLng: pos.lng, radiusKm: DEFAULT_RADIUS_KM, sort: "distance", page: 1 });
+  };
+  const setRadius = (radiusKm: number) => apply({ ...filters, radiusKm, page: 1 });
   const chips = activeChips(filters, apply);
   const count = activeFilterCount(filters);
 
@@ -122,7 +134,7 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
             href={`/search${filters.q ? `?q=${encodeURIComponent(filters.q)}` : ""}`}
             className="flex h-11 flex-1 items-center rounded-[14px] bg-surface px-4 text-sm font-bold text-ink"
           >
-            {filters.q || `Anywhere in ${filters.city}`}
+            {nearby ? `Near you · ${filters.radiusKm} km` : filters.q || `Anywhere in ${filters.city}`}
           </Link>
         </div>
 
@@ -135,6 +147,17 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
             <SlidersHorizontal aria-hidden className="size-3.5" />
             Filters{count ? ` · ${count}` : ""}
           </button>
+          {!nearby && (
+            <button
+              type="button"
+              onClick={searchNearMe}
+              disabled={nearMe.busy}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-brand bg-white px-3 text-xs font-bold text-brand-dark hover:bg-blush disabled:opacity-70"
+            >
+              <LocateFixed aria-hidden className="size-3.5" />
+              {nearMe.busy ? "Finding you…" : "Near me"}
+            </button>
+          )}
           {!filters.womenFirst && (
             <button
               type="button"
@@ -161,15 +184,15 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-[22px] leading-tight font-extrabold tracking-tight md:text-[28px]">{searchHeading(filters, areas)}</h1>
+            <h1 className="text-[22px] leading-tight font-extrabold tracking-tight md:text-[28px]">{heading}</h1>
             <p aria-live="polite" className="min-h-5 text-sm font-semibold text-muted-foreground">
-              {data ? `${data.total} ${data.total === 1 ? "place" : "places"} found` : ""}
+              {data ? `${data.total} ${data.total === 1 ? "place" : "places"} ${nearby ? `within ${filters.radiusKm} km` : "found"}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="sort" className="text-muted-foreground">Sort</Label>
-            <Select value={filters.sort} onValueChange={(v) => sortBy(v as SearchSort)} disabled={locating}>
-              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]" aria-busy={locating}>
+            <Select value={nearby ? "distance" : filters.sort} onValueChange={(v) => sortBy(v as SearchSort)} disabled={nearMe.busy || nearby}>
+              <SelectTrigger id="sort" size="sm" className="min-w-40 text-[13px]" aria-busy={nearMe.busy}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="end">
@@ -183,19 +206,62 @@ function ResultsView({ initial }: { initial: InitialResults | null }) {
           </div>
         </div>
 
+        {nearby && (
+          <div role="group" aria-label="Search radius" className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[13px] font-bold text-muted-2">Within</span>
+            {(NEARBY_RADII.includes(filters.radiusKm as never) ? NEARBY_RADII : [...NEARBY_RADII, filters.radiusKm!].sort((a, b) => a - b)).map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={r === filters.radiusKm}
+                onClick={() => setRadius(r)}
+                className={cx(
+                  "h-9 rounded-full px-4 text-[13px] font-bold transition-colors",
+                  r === filters.radiusKm ? "bg-brand text-white" : "border-[1.5px] border-line bg-white text-ink hover:border-input",
+                )}
+              >
+                {r} km
+              </button>
+            ))}
+          </div>
+        )}
+
         {error ? (
           <ErrorNote>{error}</ErrorNote>
         ) : !data ? (
           <PropertyGridSkeleton />
+        ) : data.items.length === 0 && nearby ? (
+          <EmptyState
+            icon={<LocateFixed className="size-7" />}
+            title={`No places within ${filters.radiusKm} km`}
+            body="Nearby search only shows listings that have a map pin. Try a wider radius, or search by area name."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {filters.radiusKm! < NEARBY_RADII[NEARBY_RADII.length - 1] && (
+                  <Button size="sm" onClick={() => setRadius(NEARBY_RADII[NEARBY_RADII.length - 1])}>
+                    Search within {NEARBY_RADII[NEARBY_RADII.length - 1]} km
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => apply({ ...filters, userLat: null, userLng: null, radiusKm: null, sort: "newest", page: 1 })}>
+                  Search by area
+                </Button>
+              </div>
+            }
+          />
         ) : data.items.length === 0 ? (
           <EmptyState
             icon={<SearchX className="size-7" />}
             title="No places match yet"
-            body="Try removing a filter or searching a nearby locality. New listings go live every day."
+            body="Try removing a filter, searching a nearby locality, or tap “Near me” to see what's close to you."
             action={
-              <Button variant="outline" size="sm" onClick={() => apply(resetFilters(filters))}>
-                Clear filters
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => apply(resetFilters(filters))}>
+                  Clear filters
+                </Button>
+                <Button size="sm" onClick={searchNearMe} loading={nearMe.busy}>
+                  Near me
+                </Button>
+              </div>
             }
           />
         ) : (

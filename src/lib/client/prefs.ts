@@ -38,8 +38,20 @@ export function storeOwnerHint(on: boolean) {
 export function storedCity(): string | null {
   return read("es.city");
 }
-export function storeCity(city: string) {
+/** True when the remembered city came from the visitor's location, not from their own pick. */
+export function cityIsAuto(): boolean {
+  return read("es.city.auto") === "1";
+}
+export function storeCity(city: string, auto = false) {
   write("es.city", city);
+  write("es.city.auto", auto ? "1" : null);
+}
+/** We only ask for location once; this remembers that we did. */
+export function geoAsked(): boolean {
+  return read("es.geo.asked") === "1";
+}
+export function markGeoAsked() {
+  write("es.geo.asked", "1");
 }
 
 export interface RecentSearch {

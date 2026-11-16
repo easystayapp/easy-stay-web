@@ -1,8 +1,10 @@
 "use client";
 
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
-import { storeCity, storedCity } from "@/lib/client/prefs";
+import { currentPosition, geolocationPermission } from "@/lib/client/geo";
+import { cityIsAuto, geoAsked, markGeoAsked, storeCity, storedCity } from "@/lib/client/prefs";
+import { nearestCity } from "@/lib/domain/city-geo";
 import type { Catalog } from "@/lib/domain/content";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,25 +15,85 @@ import { ToastProvider } from "./toast-provider";
 
 /* ----------------------------------------------------------------- city */
 
-export const CityContext = createContext<{ city: string; setCity: (c: string) => void }>({
+export interface CityContextValue {
+  city: string;
+  /** The visitor's own choice. Remembered, and never overridden by location afterwards. */
+  setCity: (c: string) => void;
+  /** True while the current city was picked from the visitor's location rather than by them. */
+  detected: boolean;
+  /**
+   * Picks the nearest city from the visitor's location. Does nothing once they have chosen a city
+   * themselves, and asks for location permission at most once.
+   */
+  detectCity: () => Promise<void>;
+}
+
+export const CityContext = createContext<CityContextValue>({
   city: "",
   setCity: () => {},
+  detected: false,
+  detectCity: async () => {},
 });
 
 function CityProvider({ children }: { children: React.ReactNode }) {
   const { cities, defaultCity } = useCatalog();
   const [city, setCityState] = useState(defaultCity);
+  const [detected, setDetected] = useState(false);
+  /** The visitor has picked a city themselves (now or on an earlier visit). */
+  const manual = useRef(false);
+  const inflight = useRef<Promise<void> | null>(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate from localStorage after mount */
   useEffect(() => {
     const stored = storedCity();
     // Ignore a remembered city that is no longer offered.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after mount
-    if (stored && cities.some((c) => c.label === stored)) setCityState(stored);
+    if (stored && cities.some((c) => c.label === stored)) {
+      setCityState(stored);
+      setDetected(cityIsAuto());
+      manual.current = !cityIsAuto();
+    }
   }, [cities]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const setCity = useCallback((c: string) => {
+    manual.current = true;
     setCityState(c);
-    storeCity(c);
+    setDetected(false);
+    storeCity(c, false);
   }, []);
-  return <CityContext.Provider value={{ city, setCity }}>{children}</CityContext.Provider>;
+
+  /**
+   * Whether the visitor has picked a city themselves. Reads storage, not just the ref: children's effects
+   * (the home page asks for detection) run before this provider has hydrated from storage.
+   */
+  const chosenByVisitor = useCallback(() => manual.current || (!!storedCity() && !cityIsAuto()), []);
+
+  const detectCity = useCallback((): Promise<void> => {
+    if (chosenByVisitor()) return Promise.resolve();
+    inflight.current ??= (async () => {
+      const permission = await geolocationPermission();
+      if (permission === "denied" || chosenByVisitor()) return;
+      // Without standing permission, ask only once ever: a refusal must not turn into nagging.
+      if (permission !== "granted" && geoAsked()) return;
+      markGeoAsked();
+      let hit: ReturnType<typeof nearestCity> = null;
+      try {
+        hit = nearestCity(await currentPosition(), cities);
+      } catch {
+        return; // refused or unavailable: keep the default
+      }
+      if (!hit || chosenByVisitor()) return; // outside our cities, or they chose while we were asking
+      setCityState(hit.city);
+      setDetected(true);
+      storeCity(hit.city, true);
+    })().finally(() => {
+      inflight.current = null;
+    });
+    return inflight.current;
+  }, [cities, chosenByVisitor]);
+
+  const value = useMemo(() => ({ city, setCity, detected, detectCity }), [city, setCity, detected, detectCity]);
+  return <CityContext.Provider value={value}>{children}</CityContext.Provider>;
 }
 
 /* ---------------------------------------------------------------- saved */

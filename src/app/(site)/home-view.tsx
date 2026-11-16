@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BadgeCheck, BedDouble, Building2, CalendarClock, ChartColumn, CircleHelp, House, MapPin, PhoneCall, Plus, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, BedDouble, Building2, CalendarClock, ChartColumn, CircleHelp, LocateFixed, House, MapPin, PhoneCall, Plus, Search, ShieldCheck, SlidersHorizontal, Star, TrendingUp, Users, Utensils, Venus, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { PropertyCard } from "@/components/property/property-card";
 import { LocalityCombobox } from "@/components/search/locality-combobox";
 import { useAuth } from "@/hooks/use-auth";
 import { useCity } from "@/hooks/use-city";
+import { useNearMe } from "@/hooks/use-near-me";
 import { ButtonLink } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar } from "@/components/ui/primitives";
@@ -68,8 +69,9 @@ const CATEGORY_ICON: Record<CategoryIcon, typeof House> = {
 export function HomeView() {
   const router = useRouter();
   const { cities, home } = useCatalog();
-  const { city, setCity } = useCity();
+  const { city, setCity, detected, detectCity } = useCity();
   const { me } = useAuth();
+  const nearMe = useNearMe();
   const [items, setItems] = useState<Card[] | null>(null);
   const [featured, setFeatured] = useState<FeaturedStay[] | null>(null);
   const [topRated, setTopRated] = useState<Card[] | null>(null);
@@ -77,6 +79,11 @@ export function HomeView() {
   const [q, setQ] = useState("");
   const [type, setType] = useState<PropertyType | "">("");
   const [budget, setBudget] = useState(0);
+
+  // First visit: pick the nearest city from the visitor's location. Their own choice always wins.
+  useEffect(() => {
+    void detectCity();
+  }, [detectCity]);
 
   useEffect(() => {
     if (!welcomeSeen() && window.matchMedia("(max-width: 767px)").matches) router.replace("/welcome");
@@ -107,12 +114,18 @@ export function HomeView() {
   }, [city]);
 
   const href = (f: Partial<SearchFilters>) => `/properties?${serializeFilters({ ...emptyFilters(city), ...f })}`;
+  /** The hero's type and budget choices, carried into a "near me" search. */
+  const heroFilters = () => {
+    const b = home.budgets[budget];
+    return new URLSearchParams(serializeFilters({ ...emptyFilters(city), types: type ? [type] : [], minRent: b?.minRent ?? null, maxRent: b?.maxRent ?? null }));
+  };
 
   return (
     <>
       <section className="bg-blush">
         <div className="container-page flex flex-wrap items-center gap-12 py-10 md:py-16">
           <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5 md:gap-6">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 self-start">
             <Select value={city} onValueChange={setCity}>
               <SelectTrigger
                 size="sm"
@@ -130,6 +143,13 @@ export function HomeView() {
                 ))}
               </SelectContent>
             </Select>
+            {detected && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-muted-2">
+                <LocateFixed aria-hidden className="size-3.5 text-brand" />
+                Based on your location
+              </span>
+            )}
+            </div>
             <h1 className="text-[clamp(2.1rem,5vw,3.6rem)] leading-[1.08] font-extrabold tracking-[-0.03em]">
               Find your stay.
               <br />
@@ -165,7 +185,8 @@ export function HomeView() {
                     city={city}
                     value={q}
                     onChange={setQ}
-                    placeholder={`Area in ${city}`}
+                    onNearMe={() => nearMe.search(heroFilters())}
+                    placeholder={`Area or "sector 43 noida"`}
                     className="static"
                     inputClassName="h-6 text-[15px] leading-6 font-bold text-ink placeholder:font-semibold placeholder:text-muted-foreground/80"
                     listClassName="top-[calc(100%+12px)] left-0 w-full"
@@ -218,7 +239,16 @@ export function HomeView() {
               </button>
             </form>
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
-              <span className="mr-1 flex items-center gap-1.5 font-bold text-muted-2">
+              <button
+                type="button"
+                onClick={() => nearMe.search(heroFilters())}
+                disabled={nearMe.busy}
+                className="flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-2 font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-70"
+              >
+                <LocateFixed aria-hidden className="size-4" />
+                {nearMe.busy ? "Finding you…" : "Near me"}
+              </button>
+              <span className="mr-1 ml-1 flex items-center gap-1.5 font-bold text-muted-2">
                 <TrendingUp aria-hidden className="size-4 text-brand" />
                 Popular in {city}
               </span>

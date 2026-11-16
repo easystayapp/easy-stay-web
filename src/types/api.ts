@@ -67,6 +67,8 @@ export interface PropertyCard {
   freshAt: string | null;
   rating: RatingBadge;
   safety: CardSafety | null;
+  /** Straight-line km from the searcher, for nearby and "nearest first" searches. */
+  distanceKm?: number | null;
 }
 
 /** A home-carousel stay (the card already carries every photo). */
@@ -117,6 +119,11 @@ export interface SearchResponse {
   total: number;
   page: number;
   pageCount: number;
+  /**
+   * Set when the search text named a city or part of one ("sector 43 noida"): the city that was
+   * searched, the text left over, and the part of the city asked for.
+   */
+  resolved?: { city: string; q: string; area: string | null } | null;
 }
 
 export interface Suggestion {

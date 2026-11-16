@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useCity } from "@/hooks/use-city";
+import { useNearMe } from "@/hooks/use-near-me";
 import { LocalityCombobox } from "@/components/search/locality-combobox";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { PROPERTY_TYPES, type PropertyType } from "@/lib/domain/types";
@@ -25,6 +26,7 @@ function ListingSearchInner() {
 
 function ListingSearchForm({ params }: { params: URLSearchParams }) {
   const router = useRouter();
+  const nearMe = useNearMe();
   const { city: savedCity } = useCity();
   const city = params.get("city") || savedCity;
   const [q, setQ] = useState(params.get("q") ?? "");
@@ -66,6 +68,7 @@ function ListingSearchForm({ params }: { params: URLSearchParams }) {
           value={q}
           onChange={setQ}
           onSelect={(sel) => go(sel.q, sel.type)}
+          onNearMe={() => nearMe.search(params)}
           typeShortcuts={shortcuts}
           ariaLabel={`Search area, PG, room or flat in ${city}`}
           placeholder={`Search area, PG, room or flat in ${city}`}

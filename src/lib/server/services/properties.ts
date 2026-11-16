@@ -27,15 +27,19 @@ import {
 import { emptySummary } from "@/lib/domain/rating";
 import {
   emptyFilters,
+  fitsArea,
+  isNearby,
   matchesFilters,
   normalizeText,
   PAGE_SIZE,
   pickFeatured,
+  rankByArea,
   sortProperties,
   TYPE_PLURAL,
   type SearchFilters,
 } from "@/lib/domain/search";
 import { PROPERTY_TYPE_LABEL } from "@/lib/domain/catalog";
+import { parseQuery } from "@/lib/domain/query";
 import { firstName, formatRupees } from "@/lib/domain/format";
 import { dayKey, dayKeysBetween, lastDayKeys, parseDayKey } from "@/lib/domain/time";
 import type { ListingStatus, Property, PropertyType, User } from "@/lib/domain/types";
@@ -44,7 +48,7 @@ import type { AuthUser } from "../auth";
 import { PATHS, type Repositories } from "../repositories";
 import type { PropertySafety } from "@/lib/domain/ops";
 import { deleteMedia, verifyPhotos } from "./media";
-import { popularIn } from "./content";
+import { getCatalog, popularIn } from "./content";
 import { factorAverages, toDetail, toEditable, toInput, toOwnerListing } from "./mappers";
 import { requireOwner } from "./users";
 
@@ -52,25 +56,40 @@ const CANDIDATE_LIMIT = 500;
 
 /* -------------------------------------------------------------- public */
 
-export async function searchProperties(repos: Repositories, filters: SearchFilters): Promise<SearchResponse> {
+export async function searchProperties(repos: Repositories, input: SearchFilters): Promise<SearchResponse> {
   const now = new Date();
+  const nearby = isNearby(input);
+  // "sector 43 noida": the text itself can name the city (and part of it) to search in.
+  const parsed = nearby ? null : parseQuery(input.q, (await getCatalog(repos)).cities);
+  const filters: SearchFilters = nearby
+    ? { ...input, city: "", sort: "distance" } // nearby looks across cities, nearest first
+    : parsed?.city
+      ? { ...input, city: parsed.city, q: parsed.text, area: parsed.area }
+      : input;
+
   const [candidates, womenFirst] = await Promise.all([
-    repos.properties.findCandidates(filters, CANDIDATE_LIMIT),
+    // Nearby asks the geo-fence index for everything inside the circle; other searches take the newest listings.
+    isNearby(filters)
+      ? repos.properties.findNear({ lat: filters.userLat!, lng: filters.userLng! }, filters.radiusKm!, CANDIDATE_LIMIT)
+      : repos.properties.findCandidates(filters, CANDIDATE_LIMIT),
     filters.womenFirst ? womenFirstIds(repos) : null,
   ]);
   const from = filters.userLat != null && filters.userLng != null ? { lat: filters.userLat, lng: filters.userLng } : null;
-  const matched = sortProperties(
+  const sorted = sortProperties(
     candidates.filter((p) => matchesFilters(p, filters, now) && (!womenFirst || womenFirst.has(p.id))),
     filters.sort,
     from,
   );
+  // With the default order, listings that say they're in the asked-for part (Noida) come first.
+  const matched = filters.sort === "newest" ? rankByArea(sorted, filters.area) : sorted;
   const pageCount = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
   const page = Math.min(filters.page, pageCount);
   return {
-    items: await cardsWithSafety(repos, matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)),
+    items: await cardsWithSafety(repos, matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), from),
     total: matched.length,
     page,
     pageCount,
+    resolved: parsed?.city ? { city: parsed.city, q: parsed.text, area: parsed.area?.name ?? null } : null,
   };
 }
 
@@ -81,17 +100,26 @@ export async function featuredProperties(repos: Repositories, city: string, n = 
   return cardsWithSafety(repos, pickFeatured(visible, n));
 }
 
-export async function searchSuggestions(repos: Repositories, q: string, city: string): Promise<Suggestion[]> {
+export async function searchSuggestions(repos: Repositories, rawQ: string, selectedCity: string): Promise<Suggestion[]> {
+  // The text may name another city or part of one ("sector 43 noida"); suggest from there.
+  const parsed = parseQuery(rawQ, (await getCatalog(repos)).cities);
+  const city = parsed.city ?? selectedCity;
+  const q = parsed.city ? parsed.text : rawQ;
+  const suffix = parsed.mention ? ` ${parsed.mention}` : "";
+  if (parsed.city && !q) {
+    const name = parsed.area?.name ?? parsed.city;
+    return [{ kind: "locality", label: name, sub: `Places to stay in ${name}`, query: { q: parsed.mention } }];
+  }
   const tokens = normalizeText(q);
   if (!tokens.length || tokens.join("").length < 2) return [];
   const matchesQ = (text: string) => {
     const words = normalizeText(text);
-    return tokens.every((t) => words.some((w) => w.startsWith(t)));
+    return tokens.every((t) => words.some((w) => w.startsWith(t))); // while typing, "sector 4" still suggests 42, 43, 47
   };
 
   const candidates = await repos.properties.findCandidates({ ...emptyFilters(city), q }, CANDIDATE_LIMIT);
   const now = new Date();
-  const visible = candidates.filter((p) => isPubliclyVisible(p, now) && p.location.city === city);
+  const visible = candidates.filter((p) => isPubliclyVisible(p, now) && p.location.city === city && fitsArea(p, parsed.area));
   const counts = new Map<string, Set<PropertyType>>();
   for (const p of visible) {
     if (!matchesQ(p.location.locality)) continue;
@@ -103,7 +131,7 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
 
   const out: Suggestion[] = [];
   const localities = [...counts.keys()].slice(0, 3);
-  for (const l of localities) out.push({ kind: "locality", label: l, sub: `Locality · ${city}`, query: { q: l } });
+  for (const l of localities) out.push({ kind: "locality", label: l, sub: `Locality · ${city}`, query: { q: `${l}${suffix}` } });
 
   // Listings whose name matches ("Sunrise PG", "SLVS hostel").
   for (const p of visible.filter((p) => matchesQ(p.title)).slice(0, 3)) {
@@ -122,7 +150,7 @@ export async function searchSuggestions(repos: Repositories, q: string, city: st
     const types = counts.get(top)!;
     for (const t of (types.size ? [...types] : (["pg", "flat"] as PropertyType[])).slice(0, 3)) {
       const noun = TYPE_PLURAL[t];
-      out.push({ kind: "type", label: `${noun} in ${top}`, sub: `Property type · ${PROPERTY_TYPE_LABEL[t]}`, query: { q: top, type: t } });
+      out.push({ kind: "type", label: `${noun} in ${top}`, sub: `Property type · ${PROPERTY_TYPE_LABEL[t]}`, query: { q: `${top}${suffix}`, type: t } });
     }
   }
   return out.slice(0, 9);
