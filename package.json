@@ -16,6 +16,7 @@
     "vercel:env": "tsx scripts/vercel-env.ts",
     "env:service-account": "tsx scripts/env-from-service-account.ts",
     "seed:content": "tsx scripts/seed-content.ts",
+    "backfill:geohash": "tsx scripts/backfill-geohash.ts",
     "admin:create": "tsx scripts/make-admin.ts"
   },
   "dependencies": {

@@ -17,7 +17,7 @@ import {
   SHARING_LABEL,
 } from "@/lib/domain/catalog";
 import { formatRupees, formatRupeesShort } from "@/lib/domain/format";
-import { emptyFilters, sharingOptionsFor, type SearchFilters } from "@/lib/domain/search";
+import { emptyFilters, isNearby, sharingOptionsFor, type SearchFilters } from "@/lib/domain/search";
 import { AMENITIES, FURNISHINGS, GENDERS, PROPERTY_TYPES } from "@/lib/domain/types";
 
 type Opt = { value: string; label: string };
@@ -340,9 +340,16 @@ export function activeChips(f: SearchFilters, onChange: (f: SearchFilters) => vo
   if (f.ownerRated4) chips.push({ key: "o4", label: "Owner 4★+", remove: () => onChange({ ...base, ownerRated4: false }) });
   if (f.areaRated4) chips.push({ key: "a4", label: "Area 4★+", remove: () => onChange({ ...base, areaRated4: false }) });
   if (f.womenFirst) chips.push({ key: "wf", label: "Women-First", remove: () => onChange({ ...base, womenFirst: false }) });
+  if (isNearby(f)) {
+    chips.push({
+      key: "near",
+      label: `Within ${f.radiusKm} km of you`,
+      remove: () => onChange({ ...base, userLat: null, userLng: null, radiusKm: null, sort: f.sort === "distance" ? "newest" : f.sort }),
+    });
+  }
   return chips;
 }
 
 export function resetFilters(f: SearchFilters): SearchFilters {
-  return { ...emptyFilters(f.city), q: f.q, sort: f.sort, userLat: f.userLat, userLng: f.userLng };
+  return { ...emptyFilters(f.city), q: f.q, sort: f.sort, userLat: f.userLat, userLng: f.userLng, radiusKm: f.radiusKm };
 }

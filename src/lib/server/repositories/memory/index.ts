@@ -8,6 +8,7 @@
 import { memoryBatch, memoryDocStore } from "../docstore";
 import { randomUUID } from "node:crypto";
 import type { City, Page } from "@/lib/domain/content";
+import { distanceKm } from "@/lib/domain/search";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
 import { SEED_APP_CONFIG, SEED_CITIES, SEED_HOME, SEED_PAGES, SEED_WELCOME } from "../../seed/content";
 import type { ContentDocs, FileStorage, Repositories } from "../types";
@@ -125,6 +126,15 @@ export function createMemoryRepositories(): Repositories {
           .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
           .slice(0, limit)
           .map(clone);
+      },
+      async findNear(center, radiusKm, limit) {
+        return [...s.properties.values()]
+          .filter((p) => p.status === "active" && p.location.geo)
+          .map((p) => ({ p, km: distanceKm(center, p.location.geo!) }))
+          .filter((x) => x.km <= radiusKm)
+          .sort((a, b) => a.km - b.km)
+          .slice(0, limit)
+          .map((x) => clone(x.p));
       },
       async setRatingSummary(id, summary) {
         const cur = s.properties.get(id);

@@ -12,7 +12,7 @@ import { cx } from "@/lib/client/cx";
 import { areaName } from "@/lib/domain/landing";
 import { AMENITY_LABEL, FURNISHING_LABEL, GENDER_LABEL, PROPERTY_TYPE_SHORT } from "@/lib/domain/catalog";
 import type { PropertyCard as Card } from "@/types/api";
-import { availabilityLabel, formatRupees } from "@/lib/domain/format";
+import { availabilityLabel, formatDistance, formatRupees } from "@/lib/domain/format";
 
 export function cardTags(p: Card): string {
   return [
@@ -98,6 +98,7 @@ export function PropertyCard({ p, imageHeight = "h-[180px]" }: { p: Card; imageH
         <span className="flex min-w-0 items-center gap-1 text-[13px] text-muted-foreground">
           <MapPin aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">{areaName(p.locality)}, {p.city}</span>
+          {p.distanceKm != null && <span className="ml-auto shrink-0 pl-2 font-bold text-brand-dark">{formatDistance(p.distanceKm)}</span>}
         </span>
         <span className="text-xs font-semibold text-muted-2">{cardTags(p)}</span>
         <CardSafetyRow safety={p.safety} />

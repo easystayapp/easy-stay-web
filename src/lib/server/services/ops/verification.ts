@@ -16,7 +16,8 @@ import {
   type Verification,
   type VerificationKind,
 } from "@/lib/domain/ops";
-import type { Property } from "@/lib/domain/types";
+import { distanceKm } from "@/lib/domain/search";
+import type { GeoPoint, Property } from "@/lib/domain/types";
 import type { PropertyCard } from "@/types/api";
 import type { AuthUser } from "../../auth";
 import { toCard } from "../mappers";
@@ -122,9 +123,9 @@ export async function getSafetyMany(repos: Repositories, ids: string[]) {
 }
 
 /** Result cards with their safety facts, from one batched read. */
-export async function cardsWithSafety(repos: Repositories, list: Property[]): Promise<PropertyCard[]> {
+export async function cardsWithSafety(repos: Repositories, list: Property[], from: GeoPoint | null = null): Promise<PropertyCard[]> {
   const safety = await getSafetyMany(repos, list.map((p) => p.id));
-  return list.map((p) => toCard(p, safety[p.id] ?? null));
+  return list.map((p) => toCard(p, safety[p.id] ?? null, from && p.location.geo ? distanceKm(from, p.location.geo) : null));
 }
 
 /** Ids of every listing with a current Women-First verification (one range query). */

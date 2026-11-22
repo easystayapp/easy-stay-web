@@ -4,8 +4,9 @@
  * Services never see this format: they get and give domain entities.
  */
 import { FieldValue, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
+import { geofenceRanges } from "@/lib/domain/geohash";
 import { summarize } from "@/lib/domain/rating";
-import type { SearchFilters } from "@/lib/domain/search";
+import { distanceKm, type SearchFilters } from "@/lib/domain/search";
 import type { ContactEvent, DailyViews, Property, Rating, SavedProperty, User } from "@/lib/domain/types";
 import { adminDb } from "../../firebase-admin";
 import type { NewProperty, PropertyPatch, Repositories, UserPatch } from "../types";
@@ -229,6 +230,22 @@ export function createFirestoreRepositories(): Repositories {
         // ("Mumbai Metropolitan Region (MMR)") and no search tokens.
         const snap = await props.where("status", "==", STATUS.out("active")).orderBy("publishedAt", "desc").limit(limit).get();
         return withRatings(await fromSnaps(snap.docs));
+      },
+      async findNear(center, radiusKm, limit) {
+        // Geo-fence: the circle becomes a few `geohash` ranges, each served by the single-field index.
+        // The ranges cover slightly more than the circle, so distance is re-checked exactly here.
+        const { ranges } = geofenceRanges(center, radiusKm);
+        const snaps = await Promise.all(ranges.map(([a, b]) => props.orderBy("geohash").startAt(a).endAt(b).limit(limit).get()));
+        const byId = new Map<string, DocumentSnapshot>();
+        for (const s of snaps) for (const d of s.docs) byId.set(d.id, d);
+        const near = (await fromSnaps([...byId.values()]))
+          .filter((p) => p.status === "active" && p.location.geo)
+          .map((p) => ({ p, km: distanceKm(center, p.location.geo!) }))
+          .filter((x) => x.km <= radiusKm)
+          .sort((a, b) => a.km - b.km)
+          .slice(0, limit)
+          .map((x) => x.p);
+        return withRatings(near);
       },
       async setRatingSummary() {
         // Derived from `reviews` on every read (Android writes reviews directly).

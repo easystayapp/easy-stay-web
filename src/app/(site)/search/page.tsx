@@ -1,10 +1,11 @@
 "use client";
 
-import { Building2, ChevronLeft, Clock, MapPin, Search } from "lucide-react";
+import { Building2, ChevronLeft, Clock, LocateFixed, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useCity } from "@/hooks/use-city";
+import { useNearMe } from "@/hooks/use-near-me";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Chip } from "@/components/ui/primitives";
 import { api } from "@/lib/client/api";
@@ -33,6 +34,7 @@ function SearchView() {
   const router = useRouter();
   const params = useSearchParams();
   const { city } = useCity();
+  const nearMe = useNearMe();
   const [q, setQ] = useState(params.get("q") ?? "");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [recent, setRecent] = useState<RecentSearch[]>([]);
@@ -89,12 +91,27 @@ function SearchView() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             aria-label="Search area, PG, room or flat"
-            placeholder="Search area, PG, room or flat"
+            placeholder={`Area, PG or "sector 43 noida"`}
             enterKeyHint="search"
             className="font-bold"
           />
         </InputGroup>
       </form>
+
+      <button
+        type="button"
+        onClick={() => nearMe.search()}
+        disabled={nearMe.busy}
+        className="flex items-center gap-3.5 rounded-[14px] bg-blush px-3 py-3 text-left disabled:opacity-70"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand">
+          <LocateFixed aria-hidden className="size-[18px]" />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="text-[15px] font-extrabold text-brand-dark">{nearMe.busy ? "Finding your location…" : "Near me"}</span>
+          <span className="text-xs text-muted-2">Places closest to where you are right now</span>
+        </span>
+      </button>
 
       {suggestions.length > 0 && (
         <div className="flex flex-col gap-1">

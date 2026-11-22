@@ -37,7 +37,7 @@ export function toCardSafety(s: SafetyBadge | null | undefined): CardSafety | nu
   return { healthScore: s.healthScore, womenFirst: s.womenFirst.verified, ownerVerified: s.ownerKycVerified };
 }
 
-export function toCard(p: Property, safety?: SafetyBadge | null): PropertyCard {
+export function toCard(p: Property, safety?: SafetyBadge | null, distanceKm?: number | null): PropertyCard {
   return {
     id: p.id,
     title: p.title,
@@ -57,6 +57,7 @@ export function toCard(p: Property, safety?: SafetyBadge | null): PropertyCard {
     freshAt: iso(freshAt(p)),
     rating: { average: p.ratingSummary.average, count: p.ratingSummary.count },
     safety: toCardSafety(safety),
+    distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
   };
 }
 

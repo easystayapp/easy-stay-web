@@ -38,6 +38,12 @@ export function freshnessLabel(at: Date, now = new Date()): string {
 export const STALE_DAYS = 10;
 export const isStale = (at: Date, now = new Date()) => now.getTime() - at.getTime() > STALE_DAYS * 86_400_000;
 
+/** "650 m away", "2.3 km away", "14 km away". */
+export function formatDistance(km: number): string {
+  if (km < 1) return `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m away`;
+  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km away`;
+}
+
 /* -------------------------------------------------------------- phones */
 
 /** Accepts 10-digit Indian mobiles in common formats; returns E.164 or null. */

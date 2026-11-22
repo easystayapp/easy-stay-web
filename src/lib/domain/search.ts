@@ -6,6 +6,7 @@
 import { MIN_RATINGS_TO_SHOW, PROPERTY_TYPE_LABEL, SHARING_BY_TYPE, SHARING_LABEL } from "./catalog";
 import { factorAverage } from "./rating";
 import { isPubliclyVisible } from "./listing";
+import { areaFit, tokenize, wordMatches, type AreaFilter } from "./query";
 import { addDays, parseDayKey, startOfDayIST } from "./time";
 import {
   AMENITIES,
@@ -54,9 +55,24 @@ export interface SearchFilters {
   /** Seeker's position for the "distance" sort (rounded to ~100 m before it reaches the URL). */
   userLat: number | null;
   userLng: number | null;
+  /**
+   * "Near me": only listings with a map pin within this many km of (userLat, userLng), nearest first,
+   * in any city. null = not a nearby search.
+   */
+  radiusKm: number | null;
+  /** Set by the server when the text names part of a city ("noida"); never in the URL. */
+  area: AreaFilter | null;
   sort: SearchSort;
   page: number;
 }
+
+/** Radii offered for a nearby search. */
+export const NEARBY_RADII = [2, 5, 10, 20] as const;
+export const DEFAULT_RADIUS_KM = 5;
+
+/** A nearby search has a position and a radius. */
+export const isNearby = (f: Pick<SearchFilters, "userLat" | "userLng" | "radiusKm">): boolean =>
+  f.userLat != null && f.userLng != null && f.radiusKm != null;
 
 export function emptyFilters(city: string): SearchFilters {
   return {
@@ -77,6 +93,8 @@ export function emptyFilters(city: string): SearchFilters {
     womenFirst: false,
     userLat: null,
     userLng: null,
+    radiusKm: null,
+    area: null,
     sort: "newest",
     page: 1,
   };
@@ -102,6 +120,12 @@ const coord = (v: string | null, max: number): number | null => {
   return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
 };
 
+/** Whole kilometres from 1 to 100, or null. */
+const radius = (v: string | null): number | null => {
+  const n = num(v);
+  return n != null && n >= 1 && n <= 100 ? n : null;
+};
+
 export function parseFilters(params: URLSearchParams, fallbackCity: string): SearchFilters {
   const rating = params.get("rating");
   const food = params.get("food");
@@ -125,6 +149,8 @@ export function parseFilters(params: URLSearchParams, fallbackCity: string): Sea
     womenFirst: params.get("wf") === "1",
     userLat: coord(params.get("lat"), 90),
     userLng: coord(params.get("lng"), 180),
+    radiusKm: radius(params.get("r")),
+    area: null,
     sort: sort && (SORTS as readonly string[]).includes(sort) ? sort : "newest",
     page: Math.max(1, num(params.get("page")) ?? 1),
   };
@@ -147,9 +173,11 @@ export function serializeFilters(f: SearchFilters): URLSearchParams {
   if (f.ownerRated4) p.set("owner4", "1");
   if (f.areaRated4) p.set("area4", "1");
   if (f.womenFirst) p.set("wf", "1");
-  if (f.sort === "distance" && f.userLat != null && f.userLng != null) {
+  // Position goes in the URL (rounded to ~100 m) for "nearest first" and for nearby searches.
+  if ((f.sort === "distance" || f.radiusKm != null) && f.userLat != null && f.userLng != null) {
     p.set("lat", f.userLat.toFixed(3));
     p.set("lng", f.userLng.toFixed(3));
+    if (f.radiusKm != null) p.set("r", String(f.radiusKm));
   }
   if (f.sort !== "newest") p.set("sort", f.sort);
   if (f.page > 1) p.set("page", String(f.page));
@@ -170,7 +198,8 @@ export function activeFilterCount(f: SearchFilters): number {
     (f.minRating ? 1 : 0) +
     (f.ownerRated4 ? 1 : 0) +
     (f.areaRated4 ? 1 : 0) +
-    (f.womenFirst ? 1 : 0)
+    (f.womenFirst ? 1 : 0) +
+    (isNearby(f) ? 1 : 0)
   );
 }
 
@@ -182,12 +211,7 @@ export function sharingOptionsFor(types: PropertyType[]): SharingOption[] {
 /* ------------------------------------------------------------ matching */
 
 export function normalizeText(s: string): string[] {
-  return s
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, " ")
-    .split(" ")
-    .filter(Boolean);
+  return tokenize(s);
 }
 
 const TYPE_WORDS: Record<PropertyType, string> = {
@@ -232,11 +256,19 @@ function availableByDate(v: string, now: Date): Date | null {
 
 export function matchesFilters(p: Property, f: SearchFilters, now = new Date()): boolean {
   if (!isPubliclyVisible(p, now)) return false;
-  if (f.city && p.location.city.toLowerCase() !== f.city.toLowerCase()) return false;
-  if (f.q) {
+  const nearby = isNearby(f);
+  // A nearby search looks across cities; distance replaces the city.
+  if (!nearby && f.city && p.location.city.toLowerCase() !== f.city.toLowerCase()) return false;
+  if (f.q || f.area) {
     const words = searchableWords(p);
-    const ok = normalizeText(f.q).every((t) => words.some((w) => w.startsWith(t)));
-    if (!ok) return false;
+    // Numbers must match exactly ("sector 4" is not "sector 43"); other words match as prefixes.
+    if (f.q && !normalizeText(f.q).every((t) => words.some((w) => wordMatches(t, w)))) return false;
+    // "noida": drop listings that say they're elsewhere in the region (e.g. in Gurugram).
+    if (f.area && areaFit(words, f.area) < 0) return false;
+  }
+  if (nearby) {
+    const g = p.location.geo;
+    if (!g || distanceKm({ lat: f.userLat!, lng: f.userLng! }, g) > f.radiusKm!) return false;
   }
   if (f.types.length && !f.types.includes(p.type)) return false;
   if (f.sharing.length && !f.sharing.includes(p.sharing)) return false;
@@ -283,23 +315,41 @@ export function sortProperties(items: Property[], sort: SearchSort, from: GeoPoi
   return by;
 }
 
+/** False when the listing's own text says it is in a different part of the region than `area`. */
+export function fitsArea(p: Property, area: AreaFilter | null): boolean {
+  return !area || areaFit(searchableWords(p), area) >= 0;
+}
+
+/** Listings that say they are in the wanted part of the city ("noida") come first; order is otherwise kept. */
+export function rankByArea(items: Property[], area: AreaFilter | null): Property[] {
+  if (!area) return items;
+  return items
+    .map((p, i) => ({ p, i, fit: areaFit(searchableWords(p), area) }))
+    .sort((a, b) => b.fit - a.fit || a.i - b.i)
+    .map((x) => x.p);
+}
+
 /**
  * Human summary of the search: "PGs in Gachibowli" when the text is one of
  * the city's areas, otherwise "Places to stay matching “Sunrise” in Hyderabad".
  */
-export function searchHeading(f: SearchFilters, areas: string[] = []): string {
+export function searchHeading(f: SearchFilters, areas: string[] = [], partOfCity: string | null = null): string {
   const noun =
     f.types.length === 1
       ? TYPE_PLURAL[f.types[0]]
       : "Places to stay";
-  if (!f.q) return `${noun} in ${f.city}`;
+  // "Noida" when the text named part of the city, else the city itself.
+  const where = partOfCity ?? f.city;
+  if (!f.q) return `${noun} in ${where}`;
   const q = f.q.trim().toLowerCase();
   const isArea = areas.some((a) => {
     const name = a.toLowerCase();
     return name === q || name.split(" (")[0] === q;
   });
   // "Gachibowli (Telecom Nagar, …)" reads as just "Gachibowli" in a heading.
-  return isArea ? `${noun} in ${titleCase(f.q.split(/[(,/|-]/)[0].trim())}` : `${noun} matching “${f.q}” in ${f.city}`;
+  const short = titleCase(f.q.split(/[(,/|-]/)[0].trim());
+  if (isArea) return `${noun} in ${short}${partOfCity ? `, ${partOfCity}` : ""}`;
+  return `${noun} matching “${titleCase(f.q)}” in ${where}`;
 }
 
 export const TYPE_PLURAL: Record<PropertyType, string> = { pg: "PGs", room: "Rooms", flat: "Flats", hotel: "Hotels" };
